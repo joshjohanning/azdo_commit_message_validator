@@ -1,0 +1,39 @@
+# this will have to be slightly modified - right now, it queries Jira to determine if the work item is even valid
+# If you don't care about this for Azure Boards, you can rip it out, and just use the code to scrape the commit messages
+
+name: pr_check
+on: 
+  pull_request:
+    branches: main
+ 
+jobs:
+  pr-issues-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - id: pr-issues-validation
+        run: |
+          PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
+          COMMITS=$(curl -s -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
+          echo $COMMITS | jq -c '.[]' | while read commit; do
+            COMMIT_SHA=$(echo $commit | jq '.sha')
+            COMMIT_MESSAGE=$(echo $commit | jq '.commit.message')
+            echo "Validating new commit: ${COMMIT_SHA} - ${COMMIT_MESSAGE}"
+            if [[ "$COMMIT_MESSAGE" != *"AB#"*""* ]]; then
+              echo ""
+              echo ""
+              echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks a JIRA issue key in its description, in the expected format: [JIRA-KEY] -- failing operation."
+              exit 1
+            fi
+            COMMIT_MESSAGE=${COMMIT_MESSAGE#*\[}
+            ISSUE=${COMMIT_MESSAGE%\]*}
+            if [ $ISSUE == "" ]
+            then
+              echo ""
+              echo ""
+              echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks a valid JIRA issue key in its description, in the expected format: [JIRA-KEY] -- failing operation."
+              exit 1
+            fi
+            
+            # TODO PATCH request to add GitHub Pull Request link to work items 
+            # TODO - figure out where GUID comes from in existing GitHub Pull Requests links from an AzDO work item
+          done
