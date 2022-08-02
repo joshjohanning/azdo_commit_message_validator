@@ -1,6 +1,3 @@
-# this will have to be slightly modified - right now, it queries Jira to determine if the work item is even valid
-# If you don't care about this for Azure Boards, you can rip it out, and just use the code to scrape the commit messages
-
 name: pr_check
 on: 
   pull_request:
