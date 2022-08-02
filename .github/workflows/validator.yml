@@ -12,7 +12,6 @@ jobs:
     steps:
       - id: pr-issues-validation
         run: |
-          set -euxo pipefail
           PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
           COMMITS=$(curl -s -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
           echo $COMMITS | jq -c '.[]' | while read commit; do
