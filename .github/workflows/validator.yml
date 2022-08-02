@@ -12,6 +12,7 @@ jobs:
     steps:
       - id: pr-issues-validation
         run: |
+          set -euxo pipefail
           PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
           COMMITS=$(curl -s -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
           echo $COMMITS | jq -c '.[]' | while read commit; do
@@ -21,7 +22,7 @@ jobs:
             if [[ "$COMMIT_MESSAGE" != *"AB#"*""* ]]; then
               echo ""
               echo ""
-              echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks a JIRA issue key in its description, in the expected format: [JIRA-KEY] -- failing operation."
+              echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation."
               exit 1
             fi
             COMMIT_MESSAGE=${COMMIT_MESSAGE#*\[}
@@ -30,7 +31,7 @@ jobs:
             then
               echo ""
               echo ""
-              echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks a valid JIRA issue key in its description, in the expected format: [JIRA-KEY] -- failing operation."
+              echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation."
               exit 1
             fi
             
