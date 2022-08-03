@@ -8,6 +8,10 @@ It also automatically links pull request to all of the Azure DevOps work item(s)
 
 <img width="290" alt="image" src="https://user-images.githubusercontent.com/19912012/182518941-4c7d5bad-b19f-456a-b3bd-504b3ab2f45d.png">
 
+Screenshot of validating the logs and creating pull requests:
+
+<img width="713" alt="image" src="https://user-images.githubusercontent.com/19912012/182616583-70ef5ac4-c669-40df-8fa4-60b15ab1f58f.png">
+
 ## Setup
 
 1. Create a repository secret titled `AZURE_DEVOPS_PAT`
