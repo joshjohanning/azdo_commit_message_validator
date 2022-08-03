@@ -6,3 +6,4 @@ It also automatically links pull request to all of the Azure DevOps work item(s)
 
 test
 test2
+test3
