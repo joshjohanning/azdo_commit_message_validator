@@ -84,9 +84,10 @@ function run() {
             const dataProviderUrl = dataProviderUrlBase.replace("%DEVOPS_ORG%", devOpsOrg);
             // const rExp = new RegExp(devOpsIdRegex);
             // const prRepo = github.context.repo.repo;
-            const prRepo = "azdo_commit_message_validator";
+            // const prRepo = "azdo_commit_message_validator";
             // const prOrg = github.context.repo.owner;
-            const prOrg = "joshjohanning";
+            // const prOrg = "joshjohanning";
+            const repo = process.env.REPO;
             const triggerFromPr = undefined !== prRequestId;
 
             console.log("Initialize dev ops connection ...");
@@ -122,7 +123,7 @@ function run() {
                                 properties: {
                                     workItemId: workItemId,
                                     urls: [
-                                        `https://github.com/${prOrg}/${prRepo}/pull/${prRequestId}`,
+                                        `https://github.com/${repo}/pull/${prRequestId}`,
                                     ],
                                 },
                             },

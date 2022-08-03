@@ -34,5 +34,5 @@ jobs:
             # TODO PATCH request to add GitHub Pull Request link to work items 
             # TODO - figure out where GUID comes from in existing GitHub Pull Requests links from an AzDO work item
 
-            # REPO_TOKEN=${{ github.token }} AZURE_DEVOPS_ORG=jjohanning0798 AZURE_DEVOPS_PAT=${{ secrets.AZURE_DEVOPS_PAT }} WORKITEMID=$WORKITEM PULLREQUESTID= node main.js
+            REPO_TOKEN=${{ github.token }} AZURE_DEVOPS_ORG=jjohanning0798 AZURE_DEVOPS_PAT=${{ secrets.AZURE_DEVOPS_PAT }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node main.js
           done
