@@ -34,7 +34,6 @@ If you use an API to look at the links of a work item with a GitHub pull request
       },
       "rel": "Artifact Link",
       "url": "vstfs:///GitHub/PullRequest/62f33e8a-c421-441d-88e1-06c46c4ffbbb%2f7"
-    }
 ```
 
 Note the `url` field - `vstfs:///GitHub/PullRequest/62f33e8a-c421-441d-88e1-06c46c4ffbbb%2f7`
