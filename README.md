@@ -38,7 +38,7 @@ If you use an API to look at the links of a work item with a GitHub pull request
 
 Note the `url` field - `vstfs:///GitHub/PullRequest/62f33e8a-c421-441d-88e1-06c46c4ffbbb%2f7`
 
-Creating a [new link is (relatively) easy with the API(https://docs.microsoft.com/en-us/rest/api/azure/devops/wit/work-items/update?view=azure-devops-rest-7.1&tabs=HTTP#add-a-link), but you can't just use the regular GitHub pull request link. They use a garbled GUID that isn't the GUID or ID of the repo in GitHub. 
+Creating a [new link is (relatively) easy with the API](https://docs.microsoft.com/en-us/rest/api/azure/devops/wit/work-items/update?view=azure-devops-rest-7.1&tabs=HTTP#add-a-link), but you can't just use the regular GitHub pull request link. They use a garbled GUID that isn't the GUID or ID of the repo in GitHub. 
 
 The GUID can be found using an (undocumented) API:
 
