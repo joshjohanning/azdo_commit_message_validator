@@ -7,6 +7,7 @@ jobs:
   pr-issues-validation:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2.4.2
       - name: npm install
         run: npm install
       - id: pr-issues-validation
