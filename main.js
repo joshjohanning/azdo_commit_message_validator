@@ -68,6 +68,8 @@ function run() {
             // });
             // const azToken = "xxx";
             const azToken = process.env.AZURE_DEVOPS_PAT;
+            const workItemId = process.env.WORKITEMID;
+            const prRequestId = process.env.PULLREQUESTID;
             // const failOnError = core.getBooleanInput("fail-on-error");
             //failOnError = true;
             // const devOpsIdRegex = core.getInput("devops-work-item-regex", {
@@ -81,9 +83,6 @@ function run() {
             // const addPullRequestLink = core.getBooleanInput("add-pr-link");
             const dataProviderUrl = dataProviderUrlBase.replace("%DEVOPS_ORG%", devOpsOrg);
             // const rExp = new RegExp(devOpsIdRegex);
-            let workItemId = 525;
-            // const prRequestId = github.context.issue.number;
-            const prRequestId = 10;
             // const prRepo = github.context.repo.repo;
             const prRepo = "azdo_commit_message_validator";
             // const prOrg = github.context.repo.owner;
