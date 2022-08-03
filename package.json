@@ -1,0 +1,48 @@
+{
+    "name": "azure-devops-pr-notification",
+    "version": "1.1.0",
+    "private": true,
+    "description": "GitHub Action to automatically links a GitHub PR to Azure DevOps Work Item and/or set a custom state for it",
+    "main": "dist/index.js",
+    "scripts": {
+    "build": "tsc",
+    "format": "prettier --write '**/*.ts'",
+    "format-check": "prettier --check '**/*.ts'",
+    "lint": "eslint src/**/*.ts",
+    "package": "ncc build --source-map --license licenses.txt lib/main.js -o dist",
+    "all": "npm run build && npm run format && npm run package"
+    },
+    "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dc-ag/azure-devops-pr-notification.git"
+    },
+    "keywords": [
+    "actions",
+    "node",
+    "setup"
+    ],
+    "author": "dc AG",
+    "license": "MIT",
+    "dependencies": {
+    "@actions/core": "^1.9.0",
+    "@actions/github": "^5.0.3",
+    "azure-devops-node-api": "^11.1.1",
+    "node-fetch": "^2.6.6"
+    },
+    "devDependencies": {
+    "@types/mocha": "^9.1.1",
+    "@types/node": "^18.0.0",
+    "@types/node-fetch": "^2.6.2",
+    "@typescript-eslint/eslint-plugin": "^5.29.0",
+    "@typescript-eslint/parser": "^5.29.0",
+    "@vercel/ncc": "^0.34.0",
+    "eslint": "^8.18.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-github": "^4.3.6",
+    "eslint-plugin-jest": "^26.5.3",
+    "js-yaml": "^4.1.0",
+    "nock": "^13.2.7",
+    "prettier": "2.7.1",
+    "typescript": "^4.7.4"
+    }
+}
