@@ -48,45 +48,16 @@ const dataProviderUrlBase = `https://dev.azure.com/%DEVOPS_ORG%/_apis/Contributi
 const artifactLinkGitHubPrRegex = "\\/GitHub\\/PullRequest\\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})%2F([0-9]*)";
 let hasError = false;
 let workItem = null;
-// eslint-disable-next-line require-jsdoc
 function run() {
     var _a, _b, _c, _d;
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            // const repoToken = core.getInput("repo-token", { required: true });
-            // const repoToken = "xxx";
             const repoToken = process.env.REPO_TOKEN;
-            // const devOpsOrg = core.getInput("devops-organization", {
-            //     required: true,
-            //     trimWhitespace: true,
-            // });
-            // const devOpsOrg = "jjohanning0798";
             const devOpsOrg = process.env.AZURE_DEVOPS_ORG;
-            // const azToken = core.getInput("devops-pat", {
-            //     required: true,
-            //     trimWhitespace: true,
-            // });
-            // const azToken = "xxx";
             const azToken = process.env.AZURE_DEVOPS_PAT;
             const workItemId = process.env.WORKITEMID;
             const prRequestId = process.env.PULLREQUESTID;
-            // const failOnError = core.getBooleanInput("fail-on-error");
-            //failOnError = true;
-            // const devOpsIdRegex = core.getInput("devops-work-item-regex", {
-            //     required: true,
-            //     trimWhitespace: true,
-            // });
-            // const setToState = core.getInput("set-to-state", {
-            //     trimWhitespace: true,
-            // });
-            // const dontSetStateWhilePrsOpen = core.getBooleanInput("dont-set-state-while-prs-open");
-            // const addPullRequestLink = core.getBooleanInput("add-pr-link");
             const dataProviderUrl = dataProviderUrlBase.replace("%DEVOPS_ORG%", devOpsOrg);
-            // const rExp = new RegExp(devOpsIdRegex);
-            // const prRepo = github.context.repo.repo;
-            // const prRepo = "azdo_commit_message_validator";
-            // const prOrg = github.context.repo.owner;
-            // const prOrg = "joshjohanning";
             const repo = process.env.REPO;
             const triggerFromPr = undefined !== prRequestId;
 

@@ -7,11 +7,11 @@ jobs:
   pr-issues-validation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.4.2
-      - run: echo '${{ toJSON(github) }}'
+      - uses: actions/checkout@v3
       - name: npm install
         run: npm install
-      - id: pr-issues-validation
+      - name: pr-issues-validation
+        id: pr-issues-validation
         run: |
           PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
           COMMITS=$(curl -s -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
