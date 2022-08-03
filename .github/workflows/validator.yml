@@ -2,7 +2,11 @@ name: pr_check
 on: 
   pull_request:
     branches: main
- 
+
+env:
+  # update this
+  azure_devops_org: jjohanning0798
+
 jobs:
   pr-issues-validation:
     runs-on: ubuntu-latest
@@ -34,5 +38,5 @@ jobs:
             # TODO PATCH request to add GitHub Pull Request link to work items 
             # TODO - figure out where GUID comes from in existing GitHub Pull Requests links from an AzDO work item
 
-            REPO_TOKEN=${{ github.token }} AZURE_DEVOPS_ORG=jjohanning0798 AZURE_DEVOPS_PAT=${{ secrets.AZURE_DEVOPS_PAT }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node main.js
+            REPO_TOKEN=${{ github.token }} AZURE_DEVOPS_ORG=${{ env.azure_devops_org }} AZURE_DEVOPS_PAT=${{ secrets.AZURE_DEVOPS_PAT }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node main.js
           done
