@@ -28,7 +28,7 @@ jobs:
             fi
 
             # set WORKITEM equal to the number after the # in the commit message
-            WORKITEM=`echo $COMMIT_MESSAGE | cut -d'#' -f2 | cut -d' ' -f1`
+            WORKITEM=`echo $COMMIT_MESSAGE | cut -d'#' -f2 | cut -d' ' -f1 | tr -d '"'`
             echo "Workitem = $WORKITEM"
             
             # TODO PATCH request to add GitHub Pull Request link to work items 
