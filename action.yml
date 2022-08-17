@@ -1,0 +1,47 @@
+name: 'Azure DevOps Commit Validator and Pull Request Linker'
+description: 'Enforce that each commit in a pull request has AB# in the commit message, and link all of the individual work items to the pull request'
+
+branding:
+  icon: "user-check"
+  color: "purple"
+
+inputs:
+  azure-devops-organization:
+    description: "The name of the Azure DevOps organization"
+    required: true
+  fail-if-missing-workitem-commit-link:
+    description: "Fail the action if a commit in the pull request is missing AB# in the commit message"
+    required: true
+    default: 'true'
+    
+runs:
+  using: "composite"
+  steps:
+    - name: pr-issues-validation
+      id: pr-issues-validation
+      shell: bash
+      run: |
+        PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
+        COMMITS=$(curl -s -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
+        echo $COMMITS | jq -c '.[]' | while read commit; do
+          COMMIT_SHA=$(echo $commit | jq '.sha')
+          COMMIT_MESSAGE=$(echo $commit | jq '.commit.message')
+          echo "Validating new commit: ${COMMIT_SHA} - ${COMMIT_MESSAGE}"
+          if [[ "$COMMIT_MESSAGE" != *"AB"\#""[0-9]""* ]] && [[ "$COMMIT_MESSAGE" != *"ab"\#""[0-9]""* ]]; then
+              # only fail the action if the input is true
+              if ${{ inputs.fail-if-approval-not-found }}; then
+                echo ""
+                echo ""
+                echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation."
+                exit 1
+              fi
+          else 
+            echo "valid commit"
+            # set WORKITEM equal to the number after the # in the commit message
+            WORKITEM=`echo $COMMIT_MESSAGE | cut -d'#' -f2 | cut -d' ' -f1 | tr -d '"'`
+            echo "Workitem = $WORKITEM"
+            
+            # make the call to main.js to do the linking
+            REPO_TOKEN=${{ github.token }} AZURE_DEVOPS_ORG=${{ env.azure_devops_org }} AZURE_DEVOPS_PAT=${{ secrets.AZURE_DEVOPS_PAT }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node main.js
+          fi
+        done
