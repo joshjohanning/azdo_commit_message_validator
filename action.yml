@@ -19,7 +19,7 @@ inputs:
   fail-if-missing-workitem-commit-link:
     description: "Fail the action if a commit in the pull request is missing AB# in the commit message"
     required: true
-    default: true
+    default: 'true'
     
 runs:
   using: "composite"
