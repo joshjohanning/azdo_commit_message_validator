@@ -23,7 +23,7 @@ jobs:
             COMMIT_SHA=$(echo $commit | jq '.sha')
             COMMIT_MESSAGE=$(echo $commit | jq '.commit.message')
             echo "Validating new commit: ${COMMIT_SHA} - ${COMMIT_MESSAGE}"
-            if [[ "$COMMIT_MESSAGE" != *"AB"#""[0-9]""* ]]; then
+            if [[ "$COMMIT_MESSAGE" != *"AB"\#""[0-9]""* ]] && [[ "$COMMIT_MESSAGE" != *"ab"\#""[0-9]""* ]]; then
                 echo ""
                 echo ""
                 echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation."
