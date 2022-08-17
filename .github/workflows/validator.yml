@@ -13,9 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: npm install
+        shell: bash
         run: npm install
       - name: pr-issues-validation
         id: pr-issues-validation
+        shell: bash
         run: |
           PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
           COMMITS=$(curl -s -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
@@ -34,9 +36,7 @@ jobs:
               WORKITEM=`echo $COMMIT_MESSAGE | cut -d'#' -f2 | cut -d' ' -f1 | tr -d '"'`
               echo "Workitem = $WORKITEM"
               
-              # TODO PATCH request to add GitHub Pull Request link to work items 
-              # TODO - figure out where GUID comes from in existing GitHub Pull Requests links from an AzDO work item
-
+              # make the call to main.js to do the linking
               REPO_TOKEN=${{ github.token }} AZURE_DEVOPS_ORG=${{ env.azure_devops_org }} AZURE_DEVOPS_PAT=${{ secrets.AZURE_DEVOPS_PAT }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node main.js
             fi
           done
