@@ -19,7 +19,7 @@ inputs:
   fail-if-missing-workitem-commit-link:
     description: "Fail the action if a commit in the pull request is missing AB# in the commit message"
     required: true
-    default: 'true'
+    default: true
     
 runs:
   using: "composite"
@@ -36,7 +36,7 @@ runs:
           echo "Validating new commit: ${COMMIT_SHA} - ${COMMIT_MESSAGE}"
           if [[ "$COMMIT_MESSAGE" != *"AB"\#""[0-9]""* ]] && [[ "$COMMIT_MESSAGE" != *"ab"\#""[0-9]""* ]]; then
               # only fail the action if the input is true
-              if ${{ inputs.fail-if-approval-not-found }}; then
+              if ${{ fail-if-missing-workitem-commit-link }}; then
                 echo ""
                 echo ""
                 echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation."
