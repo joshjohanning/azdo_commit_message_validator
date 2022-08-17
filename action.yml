@@ -10,7 +10,7 @@ inputs:
     description: "The name of the Azure DevOps organization"
     required: true
   github-token:
-    description: "The GitHub token that has pull request access"
+    description: "The GitHub token that has commit and pull request access"
     required: true
     default: ${{ github.token }}
   azure-devops-token:
@@ -29,7 +29,7 @@ runs:
       shell: bash
       run: |
         PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
-        COMMITS=$(curl -s -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
+        COMMITS=$(curl -s -H 'Authorization: Bearer ${{ inputs.github-token }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
         echo $COMMITS | jq -c '.[]' | while read commit; do
           COMMIT_SHA=$(echo $commit | jq '.sha')
           COMMIT_MESSAGE=$(echo $commit | jq '.commit.message')
