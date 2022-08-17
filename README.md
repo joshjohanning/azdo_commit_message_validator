@@ -12,10 +12,30 @@ Screenshot of validating the logs and creating pull requests:
 
 <img width="713" alt="image" src="https://user-images.githubusercontent.com/19912012/182616583-70ef5ac4-c669-40df-8fa4-60b15ab1f58f.png">
 
+## Usage
+
+```yml
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  pr-commit-message-enforcer-and-linker:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Azure DevOps Commit Validator and Pull Request Linker
+      uses: joshjohanning/azdo_commit_message_validator@v1
+      with:
+        azure-devops-organization: myorg # The name of the Azure DevOps organization
+        azure-devops-token: ${{ secrets.AZURE_DEVOPS_PAT }} # "Azure DevOps Personal Access Token (needs to be a full PAT)
+        fail-if-missing-workitem-commit-link: true # Fail the action if a commit in the pull request is missing AB# in the commit message
+```
+
 ## Setup
 
 1. Create a repository secret titled `AZURE_DEVOPS_PAT`
-2. Update the org name in the `action.yml` file under `env`
+2. Pass the Azure DevOps organization to the `azure-devops-organization` input parameter
 
 ## How this works
 

@@ -9,6 +9,13 @@ inputs:
   azure-devops-organization:
     description: "The name of the Azure DevOps organization"
     required: true
+  github-token:
+    description: "The GitHub token that has pull request access"
+    required: true
+    default: ${{ github.token }}
+  azure-devops-token:
+    description: "Azure DevOps Personal Access Token (needs to be a full PAT)"
+    required: true
   fail-if-missing-workitem-commit-link:
     description: "Fail the action if a commit in the pull request is missing AB# in the commit message"
     required: true
@@ -42,6 +49,6 @@ runs:
             echo "Workitem = $WORKITEM"
             
             # make the call to main.js to do the linking
-            REPO_TOKEN=${{ github.token }} AZURE_DEVOPS_ORG=${{ env.azure_devops_org }} AZURE_DEVOPS_PAT=${{ secrets.AZURE_DEVOPS_PAT }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node main.js
+            REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node main.js
           fi
         done
