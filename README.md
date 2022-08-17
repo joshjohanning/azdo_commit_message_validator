@@ -14,7 +14,11 @@ Screenshot of validating the logs and creating pull requests:
 
 ## Usage
 
+This should only be triggered via pull requests.
+
 ```yml
+name: pr-commit-message-enforcer-and-linker
+
 on:
   pull_request:
     branches: [ "main" ]
