@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: actions/checkout@v3
     - name: Azure DevOps Commit Validator and Pull Request Linker
       uses: joshjohanning/azdo_commit_message_validator@v1
       with:
@@ -35,7 +36,7 @@ jobs:
 
 ## Setup
 
-1. Create a repository secret titled `AZURE_DEVOPS_PAT`
+1. Create a repository secret titled `AZURE_DEVOPS_PAT` - it needs to be a full PAT
 2. Pass the Azure DevOps organization to the `azure-devops-organization` input parameter
 
 ## How this works
