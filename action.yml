@@ -1,5 +1,5 @@
 name: 'Azure DevOps Commit Validator and Pull Request Linker'
-description: 'Enforce that each commit in a pull request has AB# in the commit message, and link all of the individual work items to the pull request'
+description: 'Enforce that each commit in a pull request has AB# in the commit message and link all of the work items to the pull request'
 
 branding:
   icon: "user-check"
