@@ -1,8 +1,8 @@
 {
-    "name": "azure-devops-pr-notification",
-    "version": "1.1.0",
+    "name": "azure-devops-work-item-link-enforcer-and-linker",
+    "version": "1.0.0",
     "private": true,
-    "description": "GitHub Action to automatically links a GitHub PR to Azure DevOps Work Item and/or set a custom state for it",
+    "description": "GitHub Action to enforce that each commit in a pull request be linked to an Azure DevOps work item and automatically link the pull request to each work item ",
     "main": "dist/index.js",
     "scripts": {
     "build": "tsc",
@@ -14,7 +14,7 @@
     },
     "repository": {
     "type": "git",
-    "url": "git+https://github.com/dc-ag/azure-devops-pr-notification.git"
+    "url": "git+https://github.com/joshjohanning/azdo_commit_message_validator.git"
     },
     "keywords": [
     "actions",
