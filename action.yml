@@ -34,8 +34,8 @@ runs:
         # run azdo_commit_message_validator
         
         # have to do some hocus pocus since this isn't a full javascript action
-        main=$(find ~/work/_actions/joshjohanning/azdo_commit_message_validator -name "main.js" | grep -v "node_modules")
-        echo $main
+        main=$(find ../../_actions/joshjohanning/azdo_commit_message_validator -name "main.js" | grep -v "node_modules")
+        echo "::debug::main.js script location: $main"
 
         PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
         COMMITS=$(curl -s -H 'Authorization: Bearer ${{ inputs.github-token }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
