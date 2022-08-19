@@ -1,6 +1,6 @@
 {
     "name": "azure-devops-work-item-link-enforcer-and-linker",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "private": true,
     "description": "GitHub Action to enforce that each commit in a pull request be linked to an Azure DevOps work item and automatically link the pull request to each work item ",
     "main": "dist/index.js",
