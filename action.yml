@@ -76,6 +76,7 @@ runs:
                 REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node $main
               fi
             fi
+          done
           fi
 
           if ${{ inputs.check-pull-request }}; then
