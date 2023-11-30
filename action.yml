@@ -24,7 +24,15 @@ inputs:
     description: "Link the work items found in commits to the pull request"
     required: true
     default: true
-    
+  check-commits:
+    description: "Check the commits in the pull request for AB#xxx"
+    required: true
+    default: false
+  check-pull-request:
+    description: "Check the pull request body and title for AB#xxx"
+    required: true
+    default: false
+
 runs:
   using: "composite"
   steps:
@@ -32,34 +40,53 @@ runs:
       shell: bash
       run: |
         # run azdo_commit_message_validator
+
+        # TODO: if both ${{ inputs.check-commits }} and ${{ inputs.check-pull-request }} are false, then fail the action
         
+        # TODO: check if work item is valid (but will require AZDO PAT)
+
         # have to do some hocus pocus since this isn't a full javascript action
         main=$(find ../../_actions/joshjohanning/azdo_commit_message_validator -name "main.js" | grep -v "node_modules")
         echo "::debug::main.js script location: $main"
 
         PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
-        COMMITS=$(curl -s -H 'Authorization: Bearer ${{ inputs.github-token }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
-        echo $COMMITS | jq -c '.[]' | while read commit; do
-          COMMIT_SHA=$(echo $commit | jq '.sha')
-          COMMIT_MESSAGE=$(echo $commit | jq '.commit.message')
-          echo "Validating new commit: ${COMMIT_SHA} - ${COMMIT_MESSAGE}"
-          if [[ "$COMMIT_MESSAGE" != *"AB"\#""[0-9]""* ]] && [[ "$COMMIT_MESSAGE" != *"ab"\#""[0-9]""* ]]; then
-              # only fail the action if the input is true
-              if ${{ inputs.fail-if-missing-workitem-commit-link }}; then
-                echo ""
-                echo ""
-                echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation."
-                exit 1
+
+        if ${{ inputs.check-commits }}
+          COMMITS=$(curl -s -H 'Authorization: Bearer ${{ inputs.github-token }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
+          echo $COMMITS | jq -c '.[]' | while read commit; do
+            COMMIT_SHA=$(echo $commit | jq '.sha')
+            COMMIT_MESSAGE=$(echo $commit | jq '.commit.message')
+            echo "Validating new commit: ${COMMIT_SHA} - ${COMMIT_MESSAGE}"
+            if [[ "$COMMIT_MESSAGE" != *"AB"\#""[0-9]""* ]] && [[ "$COMMIT_MESSAGE" != *"ab"\#""[0-9]""* ]]; then
+                # only fail the action if the input is true
+                if ${{ inputs.fail-if-missing-workitem-commit-link }}; then
+                  echo ""
+                  echo ""
+                  echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation."
+                  exit 1
+                fi
+            else 
+              echo "valid commit"
+              # set WORKITEM equal to the number after the # in the commit message
+              WORKITEM=`echo $COMMIT_MESSAGE | cut -d'#' -f2 | cut -d' ' -f1 | tr -d '"'`
+              echo "Workitem = $WORKITEM"
+              
+              if ${{ inputs.link-commits-to-pull-request }}; then
+                # make the call to main.js to do the linking
+                REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node $main
               fi
-          else 
-            echo "valid commit"
-            # set WORKITEM equal to the number after the # in the commit message
-            WORKITEM=`echo $COMMIT_MESSAGE | cut -d'#' -f2 | cut -d' ' -f1 | tr -d '"'`
-            echo "Workitem = $WORKITEM"
-            
-            if ${{ inputs.link-commits-to-pull-request }}; then
-              # make the call to main.js to do the linking
-              REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node $main
+            fi
+          fi
+
+          if [ "$CHECK_PRS" = true ]; then
+            # check the PR body and/or title for AB#xxx
+            PULL_BODY=$(jq --raw-output .pull_request.body "$GITHUB_EVENT_PATH")
+            PULL_TITLE=$(jq --raw-output .pull_request.title "$GITHUB_EVENT_PATH")
+            if echo "$PULL_BODY" | grep -q "AB#xxx" || echo "$PULL_TITLE" | grep -q "AB#xxx"; then
+              echo "Either PULL_BODY or PULL_TITLE contain AB#xxx"
+            else
+              echo "Neither PULL_BODY nor PULL_TITLE contain AB#xxx"
+              exit 1
             fi
           fi
         done
