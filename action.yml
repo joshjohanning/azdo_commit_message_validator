@@ -32,6 +32,7 @@ inputs:
     description: "Check the pull request body and title for AB#xxx"
     required: true
     default: false
+#TODO: customize error message pr comment
 
 runs:
   using: "composite"
@@ -85,6 +86,7 @@ runs:
             PULL_TITLE=$(jq --raw-output .pull_request.title "$GITHUB_EVENT_PATH")
             if [[ "$PULL_TITLE" != *"AB"\#""[0-9]""* ]] && [[ "$PULL_TITLE" != *"ab"\#""[0-9]""* ]]; then
               if [[ "$PULL_BODY" != *"AB"\#""[0-9]""* ]] && [[ "$PULL_BODY" != *"ab"\#""[0-9]""* ]]; then
+                gh pr comment $PULL_NUMBER --body "This pull request is not linked to a work item. Please update the title or body to include a work item and re-run this check."
                 exit 1
               fi
             else
