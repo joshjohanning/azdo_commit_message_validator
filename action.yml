@@ -51,7 +51,7 @@ runs:
 
         PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
 
-        if ${{ inputs.check-commits }}
+        if ${{ inputs.check-commits }}; then
           COMMITS=$(curl -s -H 'Authorization: Bearer ${{ inputs.github-token }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
           echo $COMMITS | jq -c '.[]' | while read commit; do
             COMMIT_SHA=$(echo $commit | jq '.sha')
@@ -78,7 +78,7 @@ runs:
             fi
           fi
 
-          if [ "$CHECK_PRS" = true ]; then
+          if ${{ inputs.check-pull-request }}; then
             # check the PR body and/or title for AB#xxx
             PULL_BODY=$(jq --raw-output .pull_request.body "$GITHUB_EVENT_PATH")
             PULL_TITLE=$(jq --raw-output .pull_request.title "$GITHUB_EVENT_PATH")
