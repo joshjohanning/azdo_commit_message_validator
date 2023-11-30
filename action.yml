@@ -83,11 +83,9 @@ runs:
             # check the PR body and/or title for AB#xxx
             PULL_BODY=$(jq --raw-output .pull_request.body "$GITHUB_EVENT_PATH")
             PULL_TITLE=$(jq --raw-output .pull_request.title "$GITHUB_EVENT_PATH")
-            if echo "$PULL_BODY" | grep -q "AB#xxx" || echo "$PULL_TITLE" | grep -q "AB#xxx"; then
-              echo "Either PULL_BODY or PULL_TITLE contain AB#xxx"
-            else
-              echo "Neither PULL_BODY nor PULL_TITLE contain AB#xxx"
+            if [[ "$COMMIT_MESSAGE" != *"AB"\#""[0-9]""* ]] && [[ "$COMMIT_MESSAGE" != *"ab"\#""[0-9]""* ]]; then
               exit 1
-            fi
+            else
+              echo "You did it, you linked them"
           fi
         done
