@@ -86,16 +86,15 @@ runs:
             # check the PR body and/or title for AB#xxx
             PULL_BODY=$(jq --raw-output .pull_request.body "$GITHUB_EVENT_PATH")
             PULL_TITLE=$(jq --raw-output .pull_request.title "$GITHUB_EVENT_PATH")
-            if [[ "$PULL_TITLE" != *"AB"\#""[0-9]""* ]] && [[ "$PULL_TITLE" != *"ab"\#""[0-9]""* ]]; then
-              if [[ "$PULL_BODY" != *"AB"\#""[0-9]""* ]] && [[ "$PULL_BODY" != *"ab"\#""[0-9]""* ]]; then
-                gh pr comment $PULL_NUMBER --body "This pull request is not linked to a work item. Please update the title or body to include a work item and re-run this check."
-                exit 1
-              fi
+            if [[ "$PULL_TITLE" != *"AB"\#""[0-9]""* ]] && [[ "$PULL_TITLE" != *"ab"\#""[0-9]""* ]] || [[ "$PULL_BODY" != *"AB"\#""[0-9]""* ]] && [[ "$PULL_BODY" != *"ab"\#""[0-9]""* ]]; then
+              # Your code here
             else
-              echo "You did it, you linked them"
+              echo "PR linked to work item"
               if ${{ inputs.link-commits-to-pull-request }}; then
                 # make the call to main.js to do the linking
                 REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node $main
               fi
             fi
           fi
+
+# TODO: can we combine these so that we don't have to duplicate the PR linking code? 
