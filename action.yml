@@ -109,6 +109,7 @@ runs:
 
                 echo "Pull request linked to work item number: $WORKITEM_NUMBER"
                 # TODO: validate work item?
+                # TODO: add this as an ::info or to the job summary?
               done
             fi
           fi
