@@ -92,7 +92,7 @@ runs:
             PULL_TITLE=$(jq --raw-output .pull_request.title "$GITHUB_EVENT_PATH")
             if ! echo "$PULL_TITLE $PULL_BODY" | grep -i -E -q "AB#[0-9]+"; then
               echo "PR not linked to a work item"
-              gh pr comment $PULL_NUMBER --body $'This pull request is not linked to a work item. Please update the title or body to include a work item and make a new commit to re-run this check. You can commit an empty commit with the following command:\n\n ```\ngit commit --allow-empty -m \'linking pull request to work item\'\n```'
+              gh pr comment $PULL_NUMBER --body $'This pull request is not linked to a work item. Please update the title or body to include a work item and make a new commit to re-run this check. You can commit an empty commit with the following command:\n\n ```\ngit commit --allow-empty -m \'linking pull request to work item\'\ngit push\n```'
               # alt option: git commit --amend --no-edit && git push --force-with-lease
               echo "::error title=PR not linked to work item(s)::The pull request is not linked to any work item(s)"
               exit 1
