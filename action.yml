@@ -87,13 +87,22 @@ runs:
             PULL_BODY=$(jq --raw-output .pull_request.body "$GITHUB_EVENT_PATH")
             PULL_TITLE=$(jq --raw-output .pull_request.title "$GITHUB_EVENT_PATH")
             if [[ "$PULL_TITLE" != *"AB"\#""[0-9]""* ]] && [[ "$PULL_TITLE" != *"ab"\#""[0-9]""* ]] || [[ "$PULL_BODY" != *"AB"\#""[0-9]""* ]] && [[ "$PULL_BODY" != *"ab"\#""[0-9]""* ]]; then
-              # Your code here
+              echo "PR not linked to a work item"
+              exit 1
             else
               echo "PR linked to work item"
-              if ${{ inputs.link-commits-to-pull-request }}; then
-                # make the call to main.js to do the linking
-                REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node $main
-              fi
+
+              # Extract work items from PR body and title
+              WORKITEMS=$(echo "$PULL_BODY $PULL_TITLE" | grep -o -E "AB#[0-9]+|ab#[0-9]+")
+
+              # Loop through each work item
+              for WORKITEM in $WORKITEMS; do
+                # Remove the "AB#" or "ab#" prefix and keep only the number
+                WORKITEM_NUMBER=${WORKITEM:3}
+
+                echo "Pull request linked to work item number: $WORKITEM_NUMBER"
+                # TODO: validate work item?
+              done
             fi
           fi
 
