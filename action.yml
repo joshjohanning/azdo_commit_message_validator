@@ -86,7 +86,7 @@ runs:
             # check the PR body and/or title for AB#xxx
             PULL_BODY=$(jq --raw-output .pull_request.body "$GITHUB_EVENT_PATH")
             PULL_TITLE=$(jq --raw-output .pull_request.title "$GITHUB_EVENT_PATH")
-            if [[ "$PULL_TITLE" != *"AB"\#""[0-9]""* ]] && [[ "$PULL_TITLE" != *"ab"\#""[0-9]""* ]] || [[ "$PULL_BODY" != *"AB"\#""[0-9]""* ]] && [[ "$PULL_BODY" != *"ab"\#""[0-9]""* ]]; then
+            if ! echo "$PULL_TITLE $PULL_BODY" | grep -i -E -q "AB#[0-9]+"; then
               echo "PR not linked to a work item"
               exit 1
             else
