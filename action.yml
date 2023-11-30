@@ -94,7 +94,7 @@ runs:
               echo "PR linked to work item"
 
               # Extract work items from PR body and title
-              WORKITEMS=$(echo "$PULL_BODY $PULL_TITLE" | grep -o -E "AB#[0-9]+|ab#[0-9]+")
+              WORKITEMS=$(echo "$PULL_BODY $PULL_TITLE" | grep -o -E "AB#[0-9]+|ab#[0-9]+" | sort | uniq)
             
               # Loop through each work item
               for WORKITEM in $WORKITEMS; do
