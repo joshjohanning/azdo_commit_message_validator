@@ -6,33 +6,35 @@ branding:
   color: "purple"
 
 inputs:
-  azure-devops-organization:
-    description: "The name of the Azure DevOps organization"
-    required: true
   github-token:
-    description: "The GitHub token that has commit and pull request access"
+    description: "The GitHub token that has contents-read and pull_request-write access"
     required: true
     default: ${{ github.token }}
-  azure-devops-token:
-    description: "Azure DevOps Personal Access Token (needs to be a full PAT)"
-    required: true
-  fail-if-missing-workitem-commit-link:
-    description: "Fail the action if a commit in the pull request is missing AB# in the commit message"
-    required: true
-    default: true
-  link-commits-to-pull-request:
-    description: "Link the work items found in commits to the pull request"
-    required: true
-    default: true
-  check-commits:
-    description: "Check the commits in the pull request for AB#xxx"
-    required: true
-    default: false
   check-pull-request:
     description: "Check the pull request body and title for AB#xxx"
     required: true
     default: false
-#TODO: customize error message pr comment
+  check-commits:
+    description: "Check each commit in the pull request for AB#xxx"
+    required: true
+    default: true
+  fail-if-missing-workitem-commit-link:
+    description: "Fail the action if a commit in the pull request is missing AB# in every commit message"
+    required: true
+    default: true
+  link-commits-to-pull-request:
+    description: "Only if check-commits=true; link the work items found in commits to the pull request"
+    required: true
+    default: true
+  azure-devops-token:
+    description: "Only required if link-commits-to-pull-request=true; Azure DevOps Personal Access Token to link work item to PR (needs to be a full PAT)"
+    required: false
+  azure-devops-organization:
+    description: "Only required if link-commits-to-pull-request=true; the name of the Azure DevOps organization"
+    required: false
+# TODO: customize error message pr comment
+# TODO: validate work item
+# TODO: should `fail-if-missing-workitem-commit-link` be `fail-if-missing-workitem-link`; make it so this is 1 flag for both PR and commits?
 
 runs:
   using: "composite"
@@ -60,11 +62,13 @@ runs:
             COMMIT_SHA=$(echo $commit | jq '.sha')
             COMMIT_MESSAGE=$(echo $commit | jq '.commit.message')
             echo "Validating new commit: ${COMMIT_SHA} - ${COMMIT_MESSAGE}"
+            # TODO: use grep and filter out the duplicates
             if [[ "$COMMIT_MESSAGE" != *"AB"\#""[0-9]""* ]] && [[ "$COMMIT_MESSAGE" != *"ab"\#""[0-9]""* ]]; then
                 # only fail the action if the input is true
                 if ${{ inputs.fail-if-missing-workitem-commit-link }}; then
                   echo ""
                   echo ""
+                  # TODO: better error message (see below)
                   echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation."
                   exit 1
                 fi
@@ -76,6 +80,7 @@ runs:
               
               if ${{ inputs.link-commits-to-pull-request }}; then
                 # make the call to main.js to do the linking
+                # TODO: check to see if org/pat are set
                 REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node $main
               fi
             fi
@@ -107,5 +112,3 @@ runs:
               done
             fi
           fi
-
-# TODO: can we combine these so that we don't have to duplicate the PR linking code? 
