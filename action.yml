@@ -93,5 +93,9 @@ runs:
               fi
             else
               echo "You did it, you linked them"
+              if ${{ inputs.link-commits-to-pull-request }}; then
+                # make the call to main.js to do the linking
+                REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node $main
+              fi
             fi
           fi
