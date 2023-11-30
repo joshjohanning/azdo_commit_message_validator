@@ -39,6 +39,8 @@ runs:
   steps:
     - name: pr-workitems-validator
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
       run: |
         # run azdo_commit_message_validator
 
