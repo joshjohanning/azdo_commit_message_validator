@@ -65,7 +65,7 @@ runs:
             DIRECTORY=$(dirname "${main}")
             CURRENT_DIRECTORY=$(pwd)
             cd $DIRECTORY
-            npm install
+            npm install & echo -e "\n\n"
             cd $CURRENT_DIRECTORY
           fi
 
