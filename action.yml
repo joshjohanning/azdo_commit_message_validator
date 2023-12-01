@@ -65,7 +65,8 @@ runs:
             DIRECTORY=$(dirname "${main}")
             CURRENT_DIRECTORY=$(pwd)
             cd $DIRECTORY
-            npm install && echo -e "\n\n"
+            npm install
+            echo "" && echo ""
             cd $CURRENT_DIRECTORY
           fi
 
@@ -74,13 +75,13 @@ runs:
             COMMIT_SHA=$(echo $commit | jq '.sha')
             COMMIT_MESSAGE=$(echo $commit | jq '.commit.message')
             echo "Validating new commit: ${COMMIT_SHA} - ${COMMIT_MESSAGE}"
-            # TODO: use grep and filter out the duplicates
             if ! echo "$COMMIT_MESSAGE" | grep -i -E -q "AB#[0-9]+"; then
                 # only fail the action if the input is true
                 if ${{ inputs.fail-if-missing-workitem-commit-link }}; then
                   echo ""
                   echo ""
                   # TODO: better error message (see below)
+                  echo "::error title=Commit(s) not linked to work items::There is at least one commit in this pull request that is not linked to a work item"
                   echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation."
                   exit 1
                 fi
@@ -107,7 +108,7 @@ runs:
             PULL_TITLE=$(echo $PULL_REQUEST | jq --raw-output .title)
             if ! echo "$PULL_TITLE $PULL_BODY" | grep -i -E -q "AB#[0-9]+"; then
               echo "PR not linked to a work item"
-              echo "::error title=PR not linked to work item(s)::The pull request is not linked to any work item(s)"
+              echo "::error title=Pull Request not linked to work item(s)::The pull request is not linked to any work item(s)"
 
               COMMENT=":x: This pull request is not linked to a work item. Please update the title or body to include a work item and make a new commit to re-run this check."
               CURRENT_DATE_TIME=$(date +"%Y-%m-%d %T")
