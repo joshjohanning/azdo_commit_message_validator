@@ -79,7 +79,7 @@ runs:
             else 
               echo "valid commit"
               # set WORKITEM equal to the number after the # in the commit message
-              WORKITEM=$(echo "$PULL_BODY $PULL_TITLE" | grep -i -o -E "AB#[0-9]+")
+              WORKITEM=$(echo "$COMMIT_MESSAGE" | grep -i -o -E "AB#[0-9]+")
               echo "Workitem = $WORKITEM"
               
               if ${{ inputs.link-commits-to-pull-request }}; then
