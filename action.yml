@@ -109,7 +109,7 @@ runs:
               echo "PR not linked to a work item"
               echo "::error title=Pull Request not linked to work item(s)::The pull request is not linked to any work item(s)"
 
-              COMMENT=":x: This pull request is not linked to a work item. Please update the title or body to include a work item and make a new commit to re-run this check."
+              COMMENT=":x: This pull request is not linked to a work item. Please update the title or body to include a work item and re-run the failed job to continue. Any new commits to the pull request will also re-run the job."
               CURRENT_DATE_TIME=$(date +"%Y-%m-%d %T")
               COMMENT_EXTRA=$'\n\n[View workflow run for details](${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt}}) _(last ran\: '${CURRENT_DATE_TIME}')_'
               COMMENT_COMBINED="${COMMENT}${COMMENT_EXTRA}"
