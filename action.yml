@@ -110,14 +110,17 @@ runs:
               echo "::error title=PR not linked to work item(s)::The pull request is not linked to any work item(s)"
 
               COMMENT=":x: This pull request is not linked to a work item. Please update the title or body to include a work item and make a new commit to re-run this check."
-              COMMENT_EXTRA=$'\n\n[View workflow run for details](${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt}})'
+              CURRENT_DATE_TIME=$(date +"%Y-%m-%d %T")
+              COMMENT_EXTRA=$'\n\n[View workflow run for details](${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt}}) _(last ran: '${CURRENT_DATE_TIME})_'
               COMMENT_COMBINED="${COMMENT}${COMMENT_EXTRA}"
               COMMENTS_CLEAN=$(gh api --paginate repos/${GITHUB_REPOSITORY}/issues/${PULL_NUMBER}/comments | tr -d '\000-\031')
               COMMENT_ID=$(echo "$COMMENTS_CLEAN" | jq -r --arg comment "$COMMENT" '.[] | select(.body | contains($comment)) | .id')
               echo "Comment ID(s): $COMMENT_ID"
               # Check if the comment already exists
               if [ -n "$COMMENT_ID" ]; then
-                echo "Comment already exists: $comment_id"
+                echo "Comment already exists: $COMMENT_ID"
+                # Edit the comment
+                gh api repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID} --method PATCH --body "${COMMENT_COMBINED}"
               else
                 echo "Comment does not exist. Posting a new comment."
                 gh pr comment $PULL_NUMBER --body "${COMMENT_COMBINED}"
