@@ -63,7 +63,7 @@ runs:
             COMMIT_MESSAGE=$(echo $commit | jq '.commit.message')
             echo "Validating new commit: ${COMMIT_SHA} - ${COMMIT_MESSAGE}"
             # TODO: use grep and filter out the duplicates
-            if [[ "$COMMIT_MESSAGE" != *"AB"\#""[0-9]""* ]] && [[ "$COMMIT_MESSAGE" != *"ab"\#""[0-9]""* ]]; then
+            if ! echo "$COMMIT_MESSAGE" | grep -i -E -q "AB#[0-9]+"; then
                 # only fail the action if the input is true
                 if ${{ inputs.fail-if-missing-workitem-commit-link }}; then
                   echo ""
