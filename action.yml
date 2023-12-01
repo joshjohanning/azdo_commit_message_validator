@@ -120,9 +120,7 @@ runs:
               if [ -n "$COMMENT_ID" ]; then
                 echo "Comment already exists: $COMMENT_ID"
                 # Edit the comment
-                echo "::group::Updating the PR comment"
-                gh api repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID} --method PATCH --field body="${COMMENT_COMBINED}" > /dev/null
-                echo "::endgroup::"
+                gh api repos/${GITHUB_REPOSITORY}/issues/comme11nts/${COMMENT_ID} --method PATCH --field body="${COMMENT_COMBINED}" > /dev/null
               else
                 echo "Comment does not exist. Posting a new comment."
                 gh pr comment $PULL_NUMBER --body "${COMMENT_COMBINED}"
