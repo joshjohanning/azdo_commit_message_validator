@@ -109,8 +109,8 @@ runs:
               echo "PR not linked to a work item"
               echo "::error title=PR not linked to work item(s)::The pull request is not linked to any work item(s)"
 
-              COMMENT=$':x: This pull request is not linked to a work item. Please update the title or body to include a work item and make a new commit to re-run this check.\n\n'
-              COMMENT_EXTRA="[View workflow run for details](${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }})"
+              COMMENT=":x: This pull request is not linked to a work item. Please update the title or body to include a work item and make a new commit to re-run this check."
+              COMMENT_EXTRA=$'\n\n[View workflow run for details](${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }})'
               COMMENT_COMBINED="${COMMENT}${COMMENT_EXTRA}"
               COMMENTS=$(gh api --paginate repos/${GITHUB_REPOSITORY}/issues/${PULL_NUMBER}/comments)
               COMMENT_ID=$(echo "$COMMENTS" | jq -r '.[] | select(.body | contains("'"$COMMENT"'")) | .id')
