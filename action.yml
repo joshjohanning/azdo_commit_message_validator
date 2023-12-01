@@ -107,8 +107,22 @@ runs:
             PULL_TITLE=$(echo $PULL_REQUEST | jq --raw-output .title)
             if ! echo "$PULL_TITLE $PULL_BODY" | grep -i -E -q "AB#[0-9]+"; then
               echo "PR not linked to a work item"
-              gh pr comment $PULL_NUMBER --body $'This pull request is not linked to a work item. Please update the title or body to include a work item and make a new commit to re-run this check. You can create an empty commit and push with the following commands to re-run:\n\n ```\ngit commit --allow-empty -m \'linking pull request to work item\'\ngit push\n```'
               echo "::error title=PR not linked to work item(s)::The pull request is not linked to any work item(s)"
+
+              COMMENT=$':x: This pull request is not linked to a work item. Please update the title or body to include a work item and make a new commit to re-run this check.\n\n'
+              COMMENT_EXTRA="[View workflow run for details](${{ github.event.workflow_run.url }})"
+              COMMENT_COMBINED="${COMMENT}${COMMENT_EXTRA}"
+              COMMENTS=$(gh api --paginate /repos/${GITHUB_REPOSITORY}/issues/${PULL_NUMBER}/comments)
+              COMMENT_ID=$(echo "$COMMENTS" | jq -r '.[] | select(.body | contains("'"$COMMENT"'")) | .id')
+
+              # Check if the comment already exists
+              if [ -n "$comment_id" ]; then
+                echo "Comment already exists: $comment_id"
+              else
+                echo "Comment does not exist. Posting a new comment."
+                gh pr comment $PULL_NUMBER --body "${COMMENT_COMBINED}"
+              fi
+
               exit 1
             else
               echo "PR linked to work item"
