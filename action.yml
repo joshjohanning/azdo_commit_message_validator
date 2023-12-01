@@ -61,6 +61,14 @@ runs:
         PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
 
         if ${{ inputs.check-commits }}; then
+          if ${{ inputs.link-commits-to-pull-request }}; then
+            DIRECTORY=$(dirname "${main}")
+            CURRENT_DIRECTORY=$(pwd)
+            cd $DIRECTORY
+            npm install
+            cd $CURRENT_DIRECTORY
+          fi
+
           COMMITS=$(curl -s -H 'Authorization: Bearer ${{ inputs.github-token }}' -H "Accept: application/vnd.github.v3+json" "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER}/commits")
           echo $COMMITS | jq -c '.[]' | while read commit; do
             COMMIT_SHA=$(echo $commit | jq '.sha')
@@ -79,7 +87,7 @@ runs:
             else 
               echo "valid commit"
               # set WORKITEM equal to the number after the # in the commit message
-              WORKITEM=$(echo "$COMMIT_MESSAGE" | grep -i -o -E "AB#[0-9]+")
+              WORKITEM=$(echo "$COMMIT_MESSAGE" | grep -i -o -E "AB#[0-9]+" | cut -c 4-)
               echo "Workitem = $WORKITEM"
               
               if ${{ inputs.link-commits-to-pull-request }}; then
