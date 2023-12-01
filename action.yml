@@ -75,7 +75,7 @@ runs:
             else 
               echo "valid commit"
               # set WORKITEM equal to the number after the # in the commit message
-              WORKITEM=`echo $COMMIT_MESSAGE | cut -d'#' -f2 | cut -d' ' -f1 | tr -d '"'`
+              WORKITEM=$(echo "$PULL_BODY $PULL_TITLE" | grep -i -o -E "AB#[0-9]+")
               echo "Workitem = $WORKITEM"
               
               if ${{ inputs.link-commits-to-pull-request }}; then
@@ -100,7 +100,7 @@ runs:
               echo "PR linked to work item"
 
               # Extract work items from PR body and title
-              WORKITEMS=$(echo "$PULL_BODY $PULL_TITLE" | grep -o -E "AB#[0-9]+|ab#[0-9]+" | sort | uniq)
+              WORKITEMS=$(echo "$PULL_BODY $PULL_TITLE" | grep -i -o -E "AB#[0-9]+" | sort | uniq)
             
               # Loop through each work item
               for WORKITEM in $WORKITEMS; do
