@@ -88,9 +88,9 @@ runs:
           fi
 
           if ${{ inputs.check-pull-request }}; then
-            # TODO: we should retrieve this using the API so ppl don't have to do an empty commit
-            PULL_BODY=$(jq --raw-output .pull_request.body "$GITHUB_EVENT_PATH")
-            PULL_TITLE=$(jq --raw-output .pull_request.title "$GITHUB_EVENT_PATH")
+            PULL_REQUEST=$(gh api /repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER})
+            PULL_BODY=$(echo $PULL_REQUEST | jq --raw-output .body)
+            PULL_TITLE=$(echo $PULL_REQUEST | jq --raw-output .title)
             if ! echo "$PULL_TITLE $PULL_BODY" | grep -i -E -q "AB#[0-9]+"; then
               echo "PR not linked to a work item"
               gh pr comment $PULL_NUMBER --body $'This pull request is not linked to a work item. Please update the title or body to include a work item and make a new commit to re-run this check. You can create an empty commit and push with the following commands to re-run:\n\n ```\ngit commit --allow-empty -m \'linking pull request to work item\'\ngit push\n```'
