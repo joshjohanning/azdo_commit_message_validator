@@ -102,7 +102,7 @@ runs:
           fi
 
           if ${{ inputs.check-pull-request }}; then
-            PULL_REQUEST=$(gh api /repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER})
+            PULL_REQUEST=$(gh api repos/${GITHUB_REPOSITORY}/pulls/${PULL_NUMBER})
             PULL_BODY=$(echo $PULL_REQUEST | jq --raw-output .body)
             PULL_TITLE=$(echo $PULL_REQUEST | jq --raw-output .title)
             if ! echo "$PULL_TITLE $PULL_BODY" | grep -i -E -q "AB#[0-9]+"; then
@@ -112,7 +112,7 @@ runs:
               COMMENT=$':x: This pull request is not linked to a work item. Please update the title or body to include a work item and make a new commit to re-run this check.\n\n'
               COMMENT_EXTRA="[View workflow run for details](${{ github.event.workflow_run.url }})"
               COMMENT_COMBINED="${COMMENT}${COMMENT_EXTRA}"
-              COMMENTS=$(gh api --paginate /repos/${GITHUB_REPOSITORY}/issues/${PULL_NUMBER}/comments)
+              COMMENTS=$(gh api --paginate repos/${GITHUB_REPOSITORY}/issues/${PULL_NUMBER}/comments)
               COMMENT_ID=$(echo "$COMMENTS" | jq -r '.[] | select(.body | contains("'"$COMMENT"'")) | .id')
 
               # Check if the comment already exists
