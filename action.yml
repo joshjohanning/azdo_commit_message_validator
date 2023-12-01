@@ -32,6 +32,10 @@ inputs:
   azure-devops-organization:
     description: "Only required if link-commits-to-pull-request=true; the name of the Azure DevOps organization"
     required: false
+  comment-on-failure:
+    description: "Comment on the pull request if the action fails"
+    required: true
+    default: true
 # TODO: customize error message pr comment
 # TODO: validate work item
 # TODO: should `fail-if-missing-workitem-commit-link` be `fail-if-missing-workitem-link`; make it so this is 1 flag for both PR and commits?
@@ -81,7 +85,9 @@ runs:
               if ${{ inputs.link-commits-to-pull-request }}; then
                 # make the call to main.js to do the linking
                 # TODO: check to see if org/pat are set
+                echo "Attempting to link work item ${WORKITEM} to pull request ${PULL_NUMBER}..."
                 REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node $main
+                echo "...PR linked to work item"
               fi
             fi
           done
