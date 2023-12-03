@@ -43,6 +43,13 @@ jobs:
 1. Create a repository secret titled `AZURE_DEVOPS_PAT` - it needs to be a full PAT
 2. Pass the Azure DevOps organization to the `azure-devops-organization` input parameter
 
+### Runner Software Requirements
+
+Required software installed on runner:
+
+  - [`gh` (GitHub CLI)](https://cli.github.com/)
+  - [`jq`](https://jqlang.github.io/jq/download/)
+
 Note: `jq` needs to be [installed](https://stedolan.github.io/jq/download/) on the runner running this action
 
 ## How this works
