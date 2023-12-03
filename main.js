@@ -56,6 +56,7 @@ function run() {
             const devOpsOrg = process.env.AZURE_DEVOPS_ORG;
             const azToken = process.env.AZURE_DEVOPS_PAT;
             const workItemId = process.env.WORKITEMID;
+            const githubHostname = process.env.GITHUB_SERVER_URL;
             const prRequestId = process.env.PULLREQUESTID;
             const dataProviderUrl = dataProviderUrlBase.replace("%DEVOPS_ORG%", devOpsOrg);
             const repo = process.env.REPO;
@@ -94,7 +95,7 @@ function run() {
                                 properties: {
                                     workItemId: workItemId,
                                     urls: [
-                                        `https://github.com/${repo}/pull/${prRequestId}`,
+                                        `${githubHostname}/${repo}/pull/${prRequestId}`,
                                     ],
                                 },
                             },
