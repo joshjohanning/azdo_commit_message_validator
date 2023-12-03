@@ -1,16 +1,11 @@
-# Azure DevOps Commit Validator and Pull Request Linker Action
+# Azure DevOps Commit/PR Validator and Pull Request Linker Action
 
-This is an action to be ran in a pull request to make sure that all commits have a `AB#123` in the commit message.
+This is an action to be ran in a pull request to make sure either that one or both of the following scenarios are met:
 
-<img width="1033" alt="image" src="https://user-images.githubusercontent.com/19912012/182519049-3bd1281d-985c-41ea-b35c-c3cd35994d48.png">
-
-It also automatically links pull request to all of the Azure DevOps work item(s).
-
-<img width="290" alt="image" src="https://user-images.githubusercontent.com/19912012/182518941-4c7d5bad-b19f-456a-b3bd-504b3ab2f45d.png">
-
-Screenshot of validating the logs and creating pull requests:
-
-<img width="713" alt="image" src="https://user-images.githubusercontent.com/19912012/182616583-70ef5ac4-c669-40df-8fa4-60b15ab1f58f.png">
+1. Pull request title or body contains an Azure DevOps work item link (e.g. `AB#123`)
+2. Each commit in a pull request has an Azure DevOps work item link (e.g. `AB#123`) in the commit message
+    - Optionally, add a GitHub Pull Request link to the work item in Azure DevOps
+    - By default, Azure DevOps only adds the Pull Request link to work items mentioned directly in the PR title or body
 
 ## Usage
 
@@ -28,19 +23,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Azure DevOps Commit Validator and Pull Request Linker
-      uses: joshjohanning/azdo_commit_message_validator@v1
+      uses: joshjohanning/azdo_commit_message_validator@v2
       with:
-        azure-devops-organization: myorg # The name of the Azure DevOps organization
-        azure-devops-token: ${{ secrets.AZURE_DEVOPS_PAT }} # "Azure DevOps Personal Access Token (needs to be a full PAT)
-        fail-if-missing-workitem-commit-link: true # Fail the action if a commit in the pull request is missing AB# in the commit message
-        link-commits-to-pull-request: true # Link the work items found in commits to the pull request
+        check-pull-request: true
+        check-commits: true
+        fail-if-missing-workitem-commit-link: true
+        link-commits-to-pull-request: true
+        azure-devops-organization: my-azdo-org
+        azure-devops-token: ${{ secrets.AZURE_DEVOPS_PAT }}
 ```
+
+### Inputs
+
+| Name | Description | Required | Default |
+| --- | --- | --- | --- |
+| `check-pull-request` | Check the pull request body and title for `AB#xxx` | `true` | `true` |
+| `check-commits` | Check each commit in the pull request for `AB#xxx` | `true` | `true` |
+| `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message | `true` | `true` |
+| `link-commits-to-pull-request` | Only if `check-commits=true`, link the work items found in commits to the pull request | `true` | `true` |
+| `azure-devops-organization` | Only if `check-commits=true`, link the work items found in commits to the pull request | `true` | `''` |
+| `azure-devops-token` | Only required if `link-commits-to-pull-request=true`, Azure DevOps Personal Access Token to link work item to PR (needs to be a full PAT) | `false` | `''` |
 
 ## Setup
 
-1. Create a repository secret titled `AZURE_DEVOPS_PAT` - it needs to be a full PAT
+1. Create a repository secret titled `AZURE_DEVOPS_PAT` - it needs to be a full PAT - and pass it to the `azure-devops-token` input parameter
 2. Pass the Azure DevOps organization to the `azure-devops-organization` input parameter
 
 ### Runner Software Requirements
@@ -50,13 +58,34 @@ Required software installed on runner:
   - [`gh` (GitHub CLI)](https://cli.github.com/)
   - [`jq`](https://jqlang.github.io/jq/download/)
 
-Note: `jq` needs to be [installed](https://stedolan.github.io/jq/download/) on the runner running this action
+## Screenshots
 
-## How this works
+### Failing pull request, including comment back to the pull request showing why it failed
+
+<img width="917" alt="image" src="https://github.com/joshjohanning/azdo_commit_message_validator/assets/19912012/383358aa-748e-4666-be52-2ae6e371530e">
+
+<img width="868" alt="image" src="https://github.com/joshjohanning/azdo_commit_message_validator/assets/19912012/2dbc0775-7810-4ba3-98e0-b49391c63e7e">
+
+### Failing commit
+
+<img width="1033" alt="image" src="https://user-images.githubusercontent.com/19912012/182519049-3bd1281d-985c-41ea-b35c-c3cd35994d48.png">
+
+### Adding Pull Request link in Azure DevOps to work item linked to a commit in a pull request
+
+<img width="290" alt="image" src="https://user-images.githubusercontent.com/19912012/182518941-4c7d5bad-b19f-456a-b3bd-504b3ab2f45d.png">
+
+### Validating the logs and creating pull requests
+
+<img width="713" alt="image" src="https://user-images.githubusercontent.com/19912012/182616583-70ef5ac4-c669-40df-8fa4-60b15ab1f58f.png">
+
+## How the commit / pull request linking in Azure DevOps works
+
+If the `check-commits: true` the action will look at each commit in the pull request and check for `AB#123` in the commit message.
 
 The action loops through each commit and:
-1. makes sure it has `AB#123` in the commit message
-2. if yes, add a GitHub Pull Request link to the work item in Azure DevOps
+
+1. Makes sure it has `AB#123` in the commit message
+2. If it does, and if `link-commits-to-pull-request: true`, add a GitHub Pull Request link to the work item in Azure DevOps
 
 Adding the link to the GitHub Pull Request was the tricky part.
 
