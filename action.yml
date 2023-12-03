@@ -61,14 +61,17 @@ runs:
 
         PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
 
+        # install npm modules if they are not found
         if ${{ inputs.check-commits }}; then
           if ${{ inputs.link-commits-to-pull-request }}; then
             DIRECTORY=$(dirname "${main}")
-            CURRENT_DIRECTORY=$(pwd)
-            cd $DIRECTORY
-            npm install
-            echo "" && echo ""
-            cd $CURRENT_DIRECTORY
+            if [ ! -d "${DIRECTORY}/node_modules" ]; then
+              CURRENT_DIRECTORY=$(pwd)
+              cd $DIRECTORY
+              npm install
+              echo "" && echo ""
+              cd $CURRENT_DIRECTORY
+            fi
           fi
 
           COMMITS=$(gh api --paginate ${{ github.event.pull_request.commits_url }})
