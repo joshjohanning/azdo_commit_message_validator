@@ -54,6 +54,14 @@ runs:
         
         # TODO: check if work item is valid (but will require AZDO PAT)
 
+        # prerequisite check
+        for cmd in gh jq cut grep; do
+          if ! command -v $cmd &> /dev/null; then
+            echo "::error title=${cmd} not installed::Could not find \`${cmd}\` on the runner"
+            exit 1
+          fi
+        done
+
         # have to do some hocus pocus since this isn't a full javascript action
         main=$(find ../../_actions/joshjohanning/azdo_commit_message_validator -name "main.js" | grep -v "node_modules")
         echo "::debug::main.js script location: $main"
