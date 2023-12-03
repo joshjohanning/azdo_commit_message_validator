@@ -6,10 +6,6 @@ branding:
   color: "purple"
 
 inputs:
-  github-token:
-    description: "The GitHub token that has contents-read and pull_request-write access"
-    required: true
-    default: ${{ github.token }}
   check-pull-request:
     description: "Check the pull request body and title for AB#xxx"
     required: true
@@ -20,11 +16,11 @@ inputs:
     default: true
   fail-if-missing-workitem-commit-link:
     description: "Only if check-commits=true, fail the action if a commit in the pull request is missing AB# in every commit message"
-    required: true
+    required: false
     default: true
   link-commits-to-pull-request:
     description: "Only if check-commits=true, link the work items found in commits to the pull request"
-    required: true
+    required: false
     default: true
   azure-devops-token:
     description: "Only required if link-commits-to-pull-request=true, Azure DevOps Personal Access Token to link work item to PR (needs to be a full PAT)"
@@ -32,6 +28,10 @@ inputs:
   azure-devops-organization:
     description: "Only required if link-commits-to-pull-request=true, the name of the Azure DevOps organization"
     required: false
+  github-token:
+    description: "The GitHub token that has contents-read and pull_request-write access"
+    required: true
+    default: ${{ github.token }}
   comment-on-failure:
     description: "Comment on the pull request if the action fails"
     required: true

@@ -21,6 +21,9 @@ on:
 jobs:
   pr-commit-message-enforcer-and-linker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
     - uses: actions/checkout@v4
@@ -41,10 +44,10 @@ jobs:
 | --- | --- | --- | --- |
 | `check-pull-request` | Check the pull request body and title for `AB#xxx` | `true` | `true` |
 | `check-commits` | Check each commit in the pull request for `AB#xxx` | `true` | `true` |
-| `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message | `true` | `true` |
-| `link-commits-to-pull-request` | Only if `check-commits=true`, link the work items found in commits to the pull request | `true` | `true` |
-| `azure-devops-organization` | Only if `check-commits=true`, link the work items found in commits to the pull request | `true` | `''` |
-| `azure-devops-token` | Only required if `link-commits-to-pull-request=true`, Azure DevOps Personal Access Token to link work item to PR (needs to be a full PAT) | `false` | `''` |
+| `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message | `false` | `true` |
+| `link-commits-to-pull-request` | Only if `check-commits=true`, link the work items found in commits to the pull request | `false` | `true` |
+| `azure-devops-organization` | Only if `check-commits=true`, link the work items found in commits to the pull request | `false` | `''` |
+| `github-token` | The GitHub token that has contents-read and pull_request-write access | `true` | `${{ github.token }}` |
 
 ## Setup
 
