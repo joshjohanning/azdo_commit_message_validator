@@ -286,11 +286,12 @@ test_github_annotations() {
     # Test summary format
     PULL_NUMBER="42"
     SHORT_COMMIT_SHA="abc123d"
-    SUMMARY_COMMIT="- Commit ${SHORT_COMMIT_SHA} linked to work item AB#${WORKITEM_NUMBER}"
+    SUMMARY_COMMIT="- Work item AB#${WORKITEM_NUMBER} (from commit ${SHORT_COMMIT_SHA}) linked to pull request #${PULL_NUMBER}"
     SUMMARY_PR="- Pull request #${PULL_NUMBER} linked to work item AB#${WORKITEM_NUMBER}"
     
-    assert_contains "$SUMMARY_COMMIT" "Commit abc123d" "Summary should include short commit SHA"
-    assert_contains "$SUMMARY_COMMIT" "AB#12345" "Summary should include work item"
+    assert_contains "$SUMMARY_COMMIT" "Work item AB#12345" "Summary should include work item"
+    assert_contains "$SUMMARY_COMMIT" "from commit abc123d" "Summary should include commit SHA"
+    assert_contains "$SUMMARY_COMMIT" "pull request #42" "Summary should include PR number"
     assert_contains "$SUMMARY_PR" "Pull request #42" "Summary should include PR number"
     assert_contains "$SUMMARY_PR" "AB#12345" "Summary should include work item"
 }

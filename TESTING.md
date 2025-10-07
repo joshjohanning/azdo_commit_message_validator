@@ -2,14 +2,14 @@
 
 ## Test Summary
 
-✅ **Bash Tests: 32/32 Passing**  
+✅ **Bash Tests: 33/33 Passing**  
 ✅ **JavaScript Tests: 3/3 Passing**
 
 ## Overview
 
 This project has two types of tests:
 
-1. **Bash Script Tests** - Tests for the core action logic in `action.yml` ✅ (32 tests passing)
+1. **Bash Script Tests** - Tests for the core action logic in `action.yml` ✅ (33 tests passing)
 2. **JavaScript Tests** - Tests for the work item linking logic in `main.js` ✅ (3 tests passing)
 
 ## Bash Script Tests
@@ -51,7 +51,7 @@ The bash script tests focus on the core validation and automation logic.
   - Finding existing PR comments by content
   - Handling non-existent comments
 
-- ✅ **GitHub Actions Annotations** (7 tests)
+- ✅ **GitHub Actions Annotations** (8 tests)
   - Testing notice annotation format for work items
   - Testing job summary format for commits and PRs
   - Verifying work item information is properly displayed
@@ -69,8 +69,8 @@ npm run test:bash
 ### Bash Test Results
 
 ```text
-Total Tests:  32
-Passed:       32
+Total Tests:  33
+Passed:       33
 All tests passed!
 ```
 
@@ -121,10 +121,10 @@ npm test
 
 This will run:
 
-1. Bash tests (32 passing)
+1. Bash tests (33 passing)
 2. JavaScript tests (3 passing)
 
-**Total: 35 tests passing** ✅
+**Total: 36 tests passing** ✅
 
 ## Test Files
 
