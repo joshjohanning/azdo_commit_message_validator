@@ -83952,7 +83952,6 @@ function validateWorkItem() {
     } catch (error) {
       console.error(error);
       core.setFailed("Unknown error validating work item: " + error);
-      throw error;
     }
   });
 }

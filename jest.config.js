@@ -1,7 +1,7 @@
 module.exports = {
   testEnvironment: "node",
   testMatch: ["**/__tests__/**/*.test.js"],
-  collectCoverageFrom: ["main.js", "!**/node_modules/**", "!**/dist/**"],
+  collectCoverageFrom: ["main.js", "validateWorkItem.js", "!**/node_modules/**", "!**/dist/**", "!**/dist-validate/**"],
   coverageThreshold: {
     global: {
       branches: 50,
@@ -17,4 +17,6 @@ module.exports = {
   // Detect open handles
   detectOpenHandles: true,
   forceExit: true,
+  // Ignore dist directories
+  modulePathIgnorePatterns: ["<rootDir>/dist/", "<rootDir>/dist-validate/"],
 };
