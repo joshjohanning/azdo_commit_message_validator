@@ -72,9 +72,7 @@ function run() {
             }
             catch (exception) {
                 console.log(`... failed! ${exception}`);
-                if (failOnError) {
-                    core.setFailed("Failed connection to dev ops!");
-                }
+                core.setFailed("Failed connection to dev ops!");
                 return;
             }
             console.log("... success!");
