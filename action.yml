@@ -90,6 +90,8 @@ runs:
                 echo "Attempting to link work item ${WORKITEM} to pull request ${PULL_NUMBER}..."
                 REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM PULLREQUESTID=${{ github.event.number }} REPO=${{ github.repository }} node $main
                 echo "...PR linked to work item"
+                echo "::notice title=Work Item Linked::Work item AB#${WORKITEM} (from commit ${SHORT_COMMIT_SHA}) linked to pull request #${PULL_NUMBER}"
+                echo "- Work item AB#${WORKITEM} (from commit ${SHORT_COMMIT_SHA}) linked to pull request #${PULL_NUMBER}" >> $GITHUB_STEP_SUMMARY
               fi
             fi
           done
@@ -153,8 +155,8 @@ runs:
                 WORKITEM_NUMBER=${WORKITEM:3}
 
                 echo "Pull request linked to work item number: $WORKITEM_NUMBER"
-                # TODO: validate work item?
-                # TODO: add this as an ::info or to the job summary?
+                echo "::notice title=Work Item Linked::Pull request linked to work item AB#${WORKITEM_NUMBER}"
+                echo "- Pull request #${PULL_NUMBER} linked to work item AB#${WORKITEM_NUMBER}" >> $GITHUB_STEP_SUMMARY
               done
             fi
           fi

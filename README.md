@@ -69,6 +69,13 @@ Required software installed on runner:
 - `grep`
 - `cut`
 
+### Action Output
+
+The action provides visibility into linked work items through:
+
+- **GitHub Actions Notices**: Work item links are displayed as notice annotations in the workflow run, making it easy to see which work items are linked
+- **Job Summary**: A summary of all linked work items is added to the workflow run's job summary page, providing a quick reference of work items associated with the PR
+
 ## Screenshots
 
 ### Failing pull request, including comment back to the pull request showing why it failed

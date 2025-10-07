@@ -277,6 +277,32 @@ test_comment_id_logic() {
     assert_equals "789" "$COMMENT_ID" "Find failure comment for success update"
 }
 
+# Test Suite: GitHub Actions Annotations
+test_github_annotations() {
+    echo ""
+    echo -e "${YELLOW}Testing: GitHub Actions Annotations${NC}"
+    echo "========================================"
+    
+    # Test notice annotation format for work items
+    WORKITEM_NUMBER="12345"
+    NOTICE_OUTPUT="::notice title=Work Item Linked::Pull request linked to work item AB#${WORKITEM_NUMBER}"
+    assert_contains "$NOTICE_OUTPUT" "::notice" "Notice annotation should contain ::notice"
+    assert_contains "$NOTICE_OUTPUT" "AB#12345" "Notice should include work item number"
+    assert_contains "$NOTICE_OUTPUT" "title=Work Item Linked" "Notice should have title"
+    
+    # Test summary format
+    PULL_NUMBER="42"
+    SHORT_COMMIT_SHA="abc123d"
+    SUMMARY_COMMIT="- Work item AB#${WORKITEM_NUMBER} (from commit ${SHORT_COMMIT_SHA}) linked to pull request #${PULL_NUMBER}"
+    SUMMARY_PR="- Pull request #${PULL_NUMBER} linked to work item AB#${WORKITEM_NUMBER}"
+    
+    assert_contains "$SUMMARY_COMMIT" "Work item AB#12345" "Summary should include work item"
+    assert_contains "$SUMMARY_COMMIT" "from commit abc123d" "Summary should include commit SHA"
+    assert_contains "$SUMMARY_COMMIT" "pull request #42" "Summary should include PR number"
+    assert_contains "$SUMMARY_PR" "Pull request #42" "Summary should include PR number"
+    assert_contains "$SUMMARY_PR" "AB#12345" "Summary should include work item"
+}
+
 # Run all tests
 main() {
     echo "========================================"
@@ -290,6 +316,7 @@ main() {
     test_short_sha
     test_env_checks
     test_comment_id_logic
+    test_github_annotations
     
     # Print summary
     echo ""
