@@ -5,8 +5,8 @@
   "description": "GitHub Action to enforce that each commit in a pull request be linked to an Azure DevOps work item and automatically link the pull request to each work item ",
   "main": "dist/index.js",
   "scripts": {
-    "format": "prettier --write",
-    "format-check": "prettier --check",
+    "format": "prettier --write .",
+    "format-check": "prettier --check .",
     "lint": "eslint src/**/*.ts",
     "test": "npm run test:bash && npm run test:js",
     "test:bash": "./__tests__/action.test.sh",
