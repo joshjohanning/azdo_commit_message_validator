@@ -5,15 +5,15 @@
   "description": "GitHub Action to enforce that each commit in a pull request be linked to an Azure DevOps work item and automatically link the pull request to each work item ",
   "main": "dist/index.js",
   "scripts": {
-    "format": "prettier --write .",
-    "format-check": "prettier --check .",
-    "lint": "eslint src/**/*.ts",
+    "format": "npx prettier --write .",
+    "format-check": "npx prettier --check .",
+    "lint": "npx eslint src/**/*.ts",
     "test": "npm run test:bash && npm run test:js",
     "test:bash": "./__tests__/action.test.sh",
-    "test:js": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "package": "ncc build --source-map --license licenses.txt main.js -o dist",
+    "test:js": "npx jest",
+    "test:watch": "npx jest --watch",
+    "test:coverage": "npx jest --coverage",
+    "package": "npx @vercel/ncc build --source-map --license licenses.txt main.js -o dist",
     "all": "npm run format && npm run package"
   },
   "repository": {
@@ -25,7 +25,11 @@
     "node",
     "setup"
   ],
-  "author": "dc AG",
+  "author": {
+    "name": "Josh Johanning",
+    "email": "joshjohanning@github.com",
+    "url": "https://github.com/joshjohanning"
+  },
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.9.1",
