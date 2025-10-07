@@ -29,11 +29,12 @@ jobs:
       - name: Check npm version compatibility
         uses: joshjohanning/npm-version-check-action@v1
 
+      # don't lint here since the `main.js` is mostly not my code
       # - name: Run linting
       #   run: npm run lint
 
-      # - name: Run formatting check
-      #   run: npm run format-check
+      - name: Run formatting check
+        run: npm run format-check
 
       - name: Run tests
         run: npm test
