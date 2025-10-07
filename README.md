@@ -17,6 +17,11 @@ name: pr-commit-message-enforcer-and-linker
 on:
   pull_request:
     branches: [ "main" ]
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited # can re-run without code changes
 
 jobs:
   pr-commit-message-enforcer-and-linker:
