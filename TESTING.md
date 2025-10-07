@@ -19,25 +19,31 @@ The bash script tests focus on the core validation and automation logic.
 ### What's Tested
 
 - ✅ **Commit Message Validation** (7 tests)
+
   - Valid formats: `AB#12345`, `ab#12345`, multiple work items
   - Invalid formats: missing AB#, spaces, no number
 
 - ✅ **Pull Request Validation** (5 tests)
+
   - PR title/body validation
   - Case-insensitive matching
 
 - ✅ **Work Item Extraction** (3 tests)
+
   - Extracting work item numbers from messages
   - Handling multiple work items
 
 - ✅ **Duplicate Removal** (1 test)
+
   - Removing duplicate work item references
 
 - ✅ **Short SHA Extraction** (2 tests)
+
   - Extracting first 7 characters for display
   - Handling quoted strings from jq
 
 - ✅ **Environment Checks** (5 tests)
+
   - Verifying required commands exist (bash, jq, cut, grep, gh)
 
 - ✅ **Comment ID Logic** (2 tests)
@@ -69,9 +75,11 @@ Tests for the Azure DevOps work item linking functionality in `main.js`.
 ### Tested Functionality
 
 - ✅ **Basic Functionality** (1 test)
+
   - Verifies run function exists and is callable
 
 - ✅ **Error Handling** (1 test)
+
   - Handles already existing work item links gracefully
 
 - ✅ **API Integration** (1 test)
@@ -153,12 +161,15 @@ When adding new features:
 - ✅ Created `__tests__/main.test.js` test suite
 
 ### 2. Fixed Bug in main.js
+
 - ✅ Fixed undefined `failOnError` variable on line 75
   - Changed from: `if (failOnError) { core.setFailed(...) }`
   - Changed to: `core.setFailed("Failed connection to dev ops!");`
 
 ### 3. Test Coverage
+
 The test suite includes:
+
 - ✅ Testing successful work item linking
 - ✅ Handling already existing links gracefully
 - ✅ Testing authorization failures (401 errors)
@@ -167,17 +178,21 @@ The test suite includes:
 - ✅ Verifying API request structure
 
 ### 4. Current Test Status
+
 - 2 tests passing ✅
 - 4 tests failing due to nock HTTP mocking complexity
 
 ## Challenges Encountered
 
 ### HTTP Mocking Complexity
+
 The `main.js` file uses:
+
 1. **Azure DevOps Node API** - which makes internal OPTIONS requests to Location API
 2. **node-fetch** - which sends requests with specific headers
 
 This makes it challenging to properly mock all HTTP requests because:
+
 - The Azure DevOps SDK makes additional API calls beyond what's visible in the code
 - Header matching in nock needs to be exact (case-sensitive, including all headers)
 - The mix of mocked SDK (azure-devops-node-api) and real HTTP calls (node-fetch) creates inconsistent behavior
@@ -185,7 +200,9 @@ This makes it challenging to properly mock all HTTP requests because:
 ## Recommendations
 
 ### Option 1: Simplify Testing (Recommended for Quick Win)
+
 Focus on testing the bash script logic in `action.yml` which:
+
 - Validates commits for AB#xxx pattern
 - Validates PR title/body for AB#xxx pattern
 - Posts/updates comments on PRs
@@ -194,13 +211,17 @@ Focus on testing the bash script logic in `action.yml` which:
 This is more straightforward to test and covers the primary action logic.
 
 ### Option 2: Refactor for Testability
+
 Refactor `main.js` to:
+
 - Extract the fetch logic into a separate function that can be mocked
 - Use dependency injection for the Azure DevOps API
 - Separate concerns (API calls, business logic, error handling)
 
 ### Option 3: Integration Tests
+
 Instead of unit tests with mocks, create integration tests that:
+
 - Use a test Azure DevOps organization
 - Use real API calls (or record/replay with nock)
 - Test the full workflow end-to-end
@@ -227,6 +248,7 @@ npm run test:coverage
 ## Next Steps
 
 1. **Immediate**: The 2 passing tests verify:
+
    - Handling of already existing links works correctly
    - API request structure is correct
 

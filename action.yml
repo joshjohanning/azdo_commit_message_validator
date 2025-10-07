@@ -1,5 +1,5 @@
-name: 'Azure DevOps Commit Validator and Pull Request Linker'
-description: 'Enforce that each commit in a pull request has AB# in the commit message and link all of the work items to the pull request'
+name: "Azure DevOps Commit Validator and Pull Request Linker"
+description: "Enforce that each commit in a pull request has AB# in the commit message and link all of the work items to the pull request"
 
 branding:
   icon: "user-check"
@@ -9,19 +9,19 @@ inputs:
   check-pull-request:
     description: "Check the pull request body and title for AB#xxx"
     required: true
-    default: 'false'
+    default: "false"
   check-commits:
     description: "Check each commit in the pull request for AB#xxx"
     required: true
-    default: 'true'
+    default: "true"
   fail-if-missing-workitem-commit-link:
     description: "Only if check-commits=true, fail the action if a commit in the pull request is missing AB# in every commit message"
     required: false
-    default: 'true'
+    default: "true"
   link-commits-to-pull-request:
     description: "Only if check-commits=true, link the work items found in commits to the pull request"
     required: false
-    default: 'true'
+    default: "true"
   azure-devops-token:
     description: "Only required if link-commits-to-pull-request=true, Azure DevOps Personal Access Token to link work item to PR (needs to be a full PAT)"
     required: false
@@ -35,7 +35,7 @@ inputs:
   comment-on-failure:
     description: "Comment on the pull request if the action fails"
     required: true
-    default: 'true'
+    default: "true"
 
 runs:
   using: "composite"
@@ -46,7 +46,7 @@ runs:
         GH_TOKEN: ${{ inputs.github-token }}
       run: |
         # run azdo_commit_message_validator
-        
+
         # prerequisite check
         for cmd in gh jq cut grep; do
           if ! command -v $cmd &> /dev/null; then

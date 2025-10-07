@@ -4,8 +4,8 @@ This is an action to be ran in a pull request to make sure either that one or bo
 
 1. Pull request title or body contains an Azure DevOps work item link (e.g. `AB#123`)
 2. Each commit in a pull request has an Azure DevOps work item link (e.g. `AB#123`) in the commit message
-    - Optionally, add a GitHub Pull Request link to the work item in Azure DevOps
-    - By default, Azure DevOps only adds the Pull Request link to work items mentioned directly in the PR title or body
+   - Optionally, add a GitHub Pull Request link to the work item in Azure DevOps
+   - By default, Azure DevOps only adds the Pull Request link to work items mentioned directly in the PR title or body
 
 ## Usage
 
@@ -16,7 +16,7 @@ name: pr-commit-message-enforcer-and-linker
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
     types:
       - opened
       - synchronize
@@ -31,29 +31,29 @@ jobs:
       pull-requests: write
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Azure DevOps Commit Validator and Pull Request Linker
-      uses: joshjohanning/azdo_commit_message_validator@v2
-      with:
-        check-pull-request: true
-        check-commits: true
-        fail-if-missing-workitem-commit-link: true
-        link-commits-to-pull-request: true
-        azure-devops-organization: my-azdo-org
-        azure-devops-token: ${{ secrets.AZURE_DEVOPS_PAT }}
+      - uses: actions/checkout@v4
+      - name: Azure DevOps Commit Validator and Pull Request Linker
+        uses: joshjohanning/azdo_commit_message_validator@v2
+        with:
+          check-pull-request: true
+          check-commits: true
+          fail-if-missing-workitem-commit-link: true
+          link-commits-to-pull-request: true
+          azure-devops-organization: my-azdo-org
+          azure-devops-token: ${{ secrets.AZURE_DEVOPS_PAT }}
 ```
 
 ### Inputs
 
-| Name | Description | Required | Default |
-| --- | --- | --- | --- |
-| `check-pull-request` | Check the pull request body and title for `AB#xxx` | `true` | `true` |
-| `check-commits` | Check each commit in the pull request for `AB#xxx` | `true` | `true` |
-| `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message | `false` | `true` |
-| `link-commits-to-pull-request` | Only if `check-commits=true`, link the work items found in commits to the pull request | `false` | `true` |
-| `azure-devops-organization` | Only if `check-commits=true`, link the work items found in commits to the pull request | `false` | `''` |
-| `azure-devops-token` | Only required if `link-commits-to-pull-request=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT) | `false` | `''` |
-| `github-token` | The GitHub token that has contents-read and pull_request-write access | `true` | `${{ github.token }}` |
+| Name                                   | Description                                                                                                                    | Required | Default               |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------- | --------------------- |
+| `check-pull-request`                   | Check the pull request body and title for `AB#xxx`                                                                             | `true`   | `true`                |
+| `check-commits`                        | Check each commit in the pull request for `AB#xxx`                                                                             | `true`   | `true`                |
+| `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message           | `false`  | `true`                |
+| `link-commits-to-pull-request`         | Only if `check-commits=true`, link the work items found in commits to the pull request                                         | `false`  | `true`                |
+| `azure-devops-organization`            | Only if `check-commits=true`, link the work items found in commits to the pull request                                         | `false`  | `''`                  |
+| `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT) | `false`  | `''`                  |
+| `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                          | `true`   | `${{ github.token }}` |
 
 ## Setup
 
@@ -115,7 +115,7 @@ If you use an API to look at the links of a work item with a GitHub pull request
 
 Note the `url` field - `vstfs:///GitHub/PullRequest/62f33e8a-c421-441d-88e1-06c46c4ffbbb%2f7`
 
-Creating a [new link is (relatively) easy with the API](https://docs.microsoft.com/en-us/rest/api/azure/devops/wit/work-items/update?view=azure-devops-rest-7.1&tabs=HTTP#add-a-link), but you can't just use the regular GitHub pull request link. They use a garbled GUID that isn't the GUID or ID of the repo in GitHub. 
+Creating a [new link is (relatively) easy with the API](https://docs.microsoft.com/en-us/rest/api/azure/devops/wit/work-items/update?view=azure-devops-rest-7.1&tabs=HTTP#add-a-link), but you can't just use the regular GitHub pull request link. They use a garbled GUID that isn't the GUID or ID of the repo in GitHub.
 
 The GUID can be found using an (undocumented) API:
 
