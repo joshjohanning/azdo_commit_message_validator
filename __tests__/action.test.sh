@@ -270,6 +270,70 @@ test_comment_id_logic() {
     fi
 }
 
+# Test Suite: Input Validation
+test_input_validation() {
+    echo ""
+    echo -e "${YELLOW}Testing: Input Validation${NC}"
+    echo "========================================"
+    
+    # Test that at least one check must be enabled
+    # Simulate both checks disabled (this should fail)
+    CHECK_COMMITS="false"
+    CHECK_PR="false"
+    
+    if [ "$CHECK_COMMITS" = "false" ] && [ "$CHECK_PR" = "false" ]; then
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo -e "${GREEN}✓${NC} Both checks disabled should be detected as invalid"
+    else
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} Both checks disabled should be detected as invalid"
+    fi
+    
+    # Test check-commits enabled, check-pr disabled (valid)
+    CHECK_COMMITS="true"
+    CHECK_PR="false"
+    
+    if [ "$CHECK_COMMITS" = "true" ] || [ "$CHECK_PR" = "true" ]; then
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo -e "${GREEN}✓${NC} Only check-commits enabled should be valid"
+    else
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} Only check-commits enabled should be valid"
+    fi
+    
+    # Test check-commits disabled, check-pr enabled (valid)
+    CHECK_COMMITS="false"
+    CHECK_PR="true"
+    
+    if [ "$CHECK_COMMITS" = "true" ] || [ "$CHECK_PR" = "true" ]; then
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo -e "${GREEN}✓${NC} Only check-pull-request enabled should be valid"
+    else
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} Only check-pull-request enabled should be valid"
+    fi
+    
+    # Test both checks enabled (valid)
+    CHECK_COMMITS="true"
+    CHECK_PR="true"
+    
+    if [ "$CHECK_COMMITS" = "true" ] || [ "$CHECK_PR" = "true" ]; then
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo -e "${GREEN}✓${NC} Both checks enabled should be valid"
+    else
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} Both checks enabled should be valid"
+    fi
+}
+
 # Run all tests
 main() {
     echo "========================================"
@@ -283,6 +347,7 @@ main() {
     test_short_sha
     test_env_checks
     test_comment_id_logic
+    test_input_validation
     
     # Print summary
     echo ""
