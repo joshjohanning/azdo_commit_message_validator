@@ -75,7 +75,28 @@ runs:
                   echo ""
                   echo "Pull request contains invalid commit: ${COMMIT_SHA}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation."
                   echo "::error title=Commit(s) not linked to work items::There is at least one commit (${SHORT_COMMIT_SHA}) in pull request #${PULL_NUMBER} that is not linked to a work item"
-                  # TODO: add comment to pr
+                  
+                  # Add comment to PR if comment-on-failure is true
+                  if ${{ inputs.comment-on-failure }}; then
+                    COMMENT=":x: There is at least one commit (${SHORT_COMMIT_SHA}) in pull request #${PULL_NUMBER} that is not linked to a work item. Please update the commit message to include a work item reference (AB#xxx) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job."
+                    CURRENT_DATE_TIME=$(date +"%Y-%m-%d %T")
+                    COMMENT_EXTRA=$'\n\n[View workflow run for details](${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt}}) _(last ran\: '${CURRENT_DATE_TIME}')_'
+                    COMMENT_COMBINED="${COMMENT}${COMMENT_EXTRA}"
+                    COMMENTS_CLEAN=$(gh api --paginate ${{ github.event.pull_request.comments_url }} | tr -d '\000-\031')
+                    COMMENT_ID=$(echo "$COMMENTS_CLEAN" | jq -r --arg comment "$COMMENT" '.[] | select(.body | contains($comment)) | .id')
+                    echo "Comment ID(s): $COMMENT_ID"
+                    # Check if the comment already exists
+                    if [ -n "$COMMENT_ID" ]; then
+                      echo "Comment already exists: $COMMENT_ID"
+                      # Edit the comment
+                      echo "... attempting to update the PR comment"
+                      gh api ${{ github.event.repository.url }}/issues/comments/${COMMENT_ID} --method PATCH --field body="${COMMENT_COMBINED}" > /dev/null
+                      echo "... PR comment updated"
+                    else
+                      echo "Comment does not exist. Posting a new comment."
+                      gh pr comment $PULL_NUMBER --body "${COMMENT_COMBINED}"
+                    fi
+                  fi
                   exit 1
                 fi
             else 
@@ -108,23 +129,26 @@ runs:
               echo "PR not linked to a work item"
               echo "::error title=Pull Request not linked to work item(s)::The pull request #${PULL_NUMBER} is not linked to any work item(s)"
 
-              COMMENT="${FAILURE_COMMENT_TEXT} Please update the title or body to include a work item and re-run the failed job to continue. Any new commits to the pull request will also re-run the job."
-              CURRENT_DATE_TIME=$(date +"%Y-%m-%d %T")
-              COMMENT_EXTRA=$'\n\n[View workflow run for details](${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt}}) _(last ran\: '${CURRENT_DATE_TIME}')_'
-              COMMENT_COMBINED="${COMMENT}${COMMENT_EXTRA}"
-              COMMENTS_CLEAN=$(gh api --paginate ${{ github.event.pull_request.comments_url }} | tr -d '\000-\031')
-              COMMENT_ID=$(echo "$COMMENTS_CLEAN" | jq -r --arg comment "$FAILURE_COMMENT_TEXT" '.[] | select(.body | contains($comment)) | .id')
-              echo "Comment ID(s): $COMMENT_ID"
-              # Check if the comment already exists
-              if [ -n "$COMMENT_ID" ]; then
-                echo "Comment already exists: $COMMENT_ID"
-                # Edit the comment
-                echo "... attempting to update the PR comment"
-                gh api ${{ github.event.repository.url }}/issues/comments/${COMMENT_ID} --method PATCH --field body="${COMMENT_COMBINED}" > /dev/null
-                echo "... PR comment updated"
-              else
-                echo "Comment does not exist. Posting a new comment."
-                gh pr comment $PULL_NUMBER --body "${COMMENT_COMBINED}"
+              # Add comment to PR if comment-on-failure is true
+              if ${{ inputs.comment-on-failure }}; then
+                COMMENT="${FAILURE_COMMENT_TEXT} Please update the title or body to include a work item and re-run the failed job to continue. Any new commits to the pull request will also re-run the job."
+                CURRENT_DATE_TIME=$(date +"%Y-%m-%d %T")
+                COMMENT_EXTRA=$'\n\n[View workflow run for details](${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt}}) _(last ran\: '${CURRENT_DATE_TIME}')_'
+                COMMENT_COMBINED="${COMMENT}${COMMENT_EXTRA}"
+                COMMENTS_CLEAN=$(gh api --paginate ${{ github.event.pull_request.comments_url }} | tr -d '\000-\031')
+                COMMENT_ID=$(echo "$COMMENTS_CLEAN" | jq -r --arg comment "$FAILURE_COMMENT_TEXT" '.[] | select(.body | contains($comment)) | .id')
+                echo "Comment ID(s): $COMMENT_ID"
+                # Check if the comment already exists
+                if [ -n "$COMMENT_ID" ]; then
+                  echo "Comment already exists: $COMMENT_ID"
+                  # Edit the comment
+                  echo "... attempting to update the PR comment"
+                  gh api ${{ github.event.repository.url }}/issues/comments/${COMMENT_ID} --method PATCH --field body="${COMMENT_COMBINED}" > /dev/null
+                  echo "... PR comment updated"
+                else
+                  echo "Comment does not exist. Posting a new comment."
+                  gh pr comment $PULL_NUMBER --body "${COMMENT_COMBINED}"
+                fi
               fi
               exit 1
             else

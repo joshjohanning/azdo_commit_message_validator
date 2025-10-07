@@ -56,6 +56,7 @@ jobs:
 | `azure-devops-organization`            | Only if `check-commits=true`, link the work items found in commits to the pull request                                         | `false`  | `''`                  |
 | `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT) | `false`  | `''`                  |
 | `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                          | `true`   | `${{ github.token }}` |
+| `comment-on-failure`                   | Comment on the pull request if the action fails                                                                                | `true`   | `true`                |
 
 ## Setup
 
