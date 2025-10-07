@@ -279,17 +279,8 @@ test_azdo_config_validation() {
     # Test when both org and PAT are set (valid)
     ORG="my-org"
     PAT="my-pat-token"
-    ORG_CHECK_FAILED=false
-    PAT_CHECK_FAILED=false
     
-    if [ -z "$ORG" ]; then
-        ORG_CHECK_FAILED=true
-    fi
-    if [ -z "$PAT" ]; then
-        PAT_CHECK_FAILED=true
-    fi
-    
-    if [ "$ORG_CHECK_FAILED" = false ] && [ "$PAT_CHECK_FAILED" = false ]; then
+    if [ -n "$ORG" ] && [ -n "$PAT" ]; then
         TESTS_RUN=$((TESTS_RUN + 1))
         TESTS_PASSED=$((TESTS_PASSED + 1))
         echo -e "${GREEN}✓${NC} Should pass when both org and PAT are set"
