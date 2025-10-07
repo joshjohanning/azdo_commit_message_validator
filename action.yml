@@ -22,11 +22,15 @@ inputs:
     description: "Only if check-commits=true, link the work items found in commits to the pull request"
     required: false
     default: "true"
+  verify-work-items-exist:
+    description: "Validate that work items referenced in commits/PRs actually exist in Azure DevOps (requires azure-devops-token and azure-devops-organization)"
+    required: false
+    default: "false"
   azure-devops-token:
-    description: "Only required if link-commits-to-pull-request=true, Azure DevOps Personal Access Token to link work item to PR (needs to be a full PAT)"
+    description: "Only required if link-commits-to-pull-request=true or verify-work-items-exist=true, Azure DevOps Personal Access Token to link work item to PR (needs to be a full PAT)"
     required: false
   azure-devops-organization:
-    description: "Only required if link-commits-to-pull-request=true, the name of the Azure DevOps organization"
+    description: "Only required if link-commits-to-pull-request=true or verify-work-items-exist=true, the name of the Azure DevOps organization"
     required: false
   github-token:
     description: "The GitHub token that has contents-read and pull_request-write access"
@@ -57,7 +61,9 @@ runs:
 
         # have to do some hocus pocus since this isn't a full javascript action
         main="${GITHUB_ACTION_PATH}/dist/index.js"
+        validateWorkItem="${GITHUB_ACTION_PATH}/dist-validate/index.js"
         echo "::debug::main.js script location: $main"
+        echo "::debug::validateWorkItem.js script location: $validateWorkItem"
 
         PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
 
@@ -83,6 +89,20 @@ runs:
               # set WORKITEM equal to the number after the # in the commit message
               WORKITEM=$(echo "$COMMIT_MESSAGE" | grep -i -o -E "AB#[0-9]+" | cut -c 4-)
               echo "Workitem = $WORKITEM"
+              
+              # Validate work item exists if requested
+              if ${{ inputs.verify-work-items-exist }}; then
+                if [ -n "${{ inputs.azure-devops-token }}" ] && [ -n "${{ inputs.azure-devops-organization }}" ]; then
+                  echo "Validating work item ${WORKITEM} exists in Azure DevOps..."
+                  REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM node $validateWorkItem
+                  if [ $? -ne 0 ]; then
+                    echo "::error title=Work item does not exist::Work item ${WORKITEM} referenced in commit ${SHORT_COMMIT_SHA} does not exist in Azure DevOps"
+                    exit 1
+                  fi
+                else
+                  echo "::warning title=Cannot verify work items::verify-work-items-exist is enabled but azure-devops-token or azure-devops-organization is not provided"
+                fi
+              fi
               
               if ${{ inputs.link-commits-to-pull-request }}; then
                 # make the call to main.js to do the linking
@@ -135,7 +155,20 @@ runs:
                 WORKITEM_NUMBER=${WORKITEM:3}
 
                 echo "Pull request linked to work item number: $WORKITEM_NUMBER"
-                # TODO: validate work item?
+                
+                # Validate work item exists if requested
+                if ${{ inputs.verify-work-items-exist }}; then
+                  if [ -n "${{ inputs.azure-devops-token }}" ] && [ -n "${{ inputs.azure-devops-organization }}" ]; then
+                    echo "Validating work item ${WORKITEM_NUMBER} exists in Azure DevOps..."
+                    REPO_TOKEN=${{ inputs.github-token }} AZURE_DEVOPS_ORG=${{ inputs.azure-devops-organization }} AZURE_DEVOPS_PAT=${{ inputs.azure-devops-token }} WORKITEMID=$WORKITEM_NUMBER node $validateWorkItem
+                    if [ $? -ne 0 ]; then
+                      echo "::error title=Work item does not exist::Work item ${WORKITEM_NUMBER} referenced in pull request does not exist in Azure DevOps"
+                      exit 1
+                    fi
+                  else
+                    echo "::warning title=Cannot verify work items::verify-work-items-exist is enabled but azure-devops-token or azure-devops-organization is not provided"
+                  fi
+                fi
                 # TODO: add this as an ::info or to the job summary?
               done
             fi

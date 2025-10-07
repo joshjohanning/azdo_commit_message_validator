@@ -39,6 +39,7 @@ jobs:
           check-commits: true
           fail-if-missing-workitem-commit-link: true
           link-commits-to-pull-request: true
+          verify-work-items-exist: true # Optional: validate work items actually exist
           azure-devops-organization: my-azdo-org
           azure-devops-token: ${{ secrets.AZURE_DEVOPS_PAT }}
 ```
@@ -51,8 +52,9 @@ jobs:
 | `check-commits`                        | Check each commit in the pull request for `AB#xxx`                                                                             | `true`   | `true`                |
 | `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message           | `false`  | `true`                |
 | `link-commits-to-pull-request`         | Only if `check-commits=true`, link the work items found in commits to the pull request                                         | `false`  | `true`                |
-| `azure-devops-organization`            | Only if `check-commits=true`, link the work items found in commits to the pull request                                         | `false`  | `''`                  |
-| `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT) | `false`  | `''`                  |
+| `verify-work-items-exist`              | Validate that work items referenced in commits/PRs actually exist in Azure DevOps (requires `azure-devops-token` and `azure-devops-organization`) | `false`  | `false`               |
+| `azure-devops-organization`            | Only required if `link-commits-to-pull-request=true` or `verify-work-items-exist=true`, the name of the Azure DevOps organization | `false`  | `''`                  |
+| `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true` or `verify-work-items-exist=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT) | `false`  | `''`                  |
 | `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                          | `true`   | `${{ github.token }}` |
 
 ## Setup
