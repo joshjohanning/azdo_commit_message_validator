@@ -268,6 +268,13 @@ test_comment_id_logic() {
         TESTS_FAILED=$((TESTS_FAILED + 1))
         echo -e "${RED}✗${NC} Comment ID should be empty when not found"
     fi
+    
+    # Test finding failure comment for update on success
+    COMMENTS='[{"id":789,"body":":x: This pull request is not linked to a work item. Please update..."}]'
+    SEARCH_TEXT=":x: This pull request is not linked to a work item."
+    COMMENT_ID=$(echo "$COMMENTS" | jq -r --arg comment "$SEARCH_TEXT" '.[] | select(.body | contains($comment)) | .id')
+    
+    assert_equals "789" "$COMMENT_ID" "Find failure comment for success update"
 }
 
 # Run all tests
