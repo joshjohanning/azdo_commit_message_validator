@@ -87,8 +87,12 @@ runs:
               if ${{ inputs.link-commits-to-pull-request }}; then
                 # make the call to main.js to do the linking
                 # Check to see if org/pat are set
-                if [ -z "${{ inputs.azure-devops-organization }}" ] || [ -z "${{ inputs.azure-devops-token }}" ]; then
-                  echo "::error title=Missing Azure DevOps Configuration::Azure DevOps organization and token are required when link-commits-to-pull-request is true"
+                if [ -z "${{ inputs.azure-devops-organization }}" ]; then
+                  echo "::error title=Missing Azure DevOps Configuration::Azure DevOps organization is required when link-commits-to-pull-request is true"
+                  exit 1
+                fi
+                if [ -z "${{ inputs.azure-devops-token }}" ]; then
+                  echo "::error title=Missing Azure DevOps Configuration::Azure DevOps token is required when link-commits-to-pull-request is true"
                   exit 1
                 fi
                 echo "Attempting to link work item ${WORKITEM} to pull request ${PULL_NUMBER}..."
