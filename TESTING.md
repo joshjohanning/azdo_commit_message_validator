@@ -3,14 +3,14 @@
 ## Test Summary
 
 ✅ **Bash Tests: 25/25 Passing**  
-✅ **JavaScript Tests: 3/3 Passing**
+✅ **JavaScript Tests: 8/8 Passing**
 
 ## Overview
 
 This project has two types of tests:
 
 1. **Bash Script Tests** - Tests for the core action logic in `action.yml` ✅ (25 tests passing)
-2. **JavaScript Tests** - Tests for the work item linking logic in `main.js` ✅ (3 tests passing)
+2. **JavaScript Tests** - Tests for the work item linking and validation logic in `main.js` and `validateWorkItem.js` ✅ (8 tests passing)
 
 ## Bash Script Tests
 
@@ -83,8 +83,16 @@ Tests for the Azure DevOps work item linking functionality in `main.js`.
   - Handles already existing work item links gracefully
 
 - ✅ **API Integration** (1 test)
+
   - Sends correct request structure to Azure DevOps API
   - Validates request body format
+
+- ✅ **Work Item Validation** (4 tests)
+  
+  - Validates that work items exist in Azure DevOps
+  - Handles non-existent work items gracefully
+  - Handles Azure DevOps connection failures
+  - Handles null work item responses
 
 ### Running JavaScript Tests
 
@@ -102,8 +110,8 @@ npm run test:watch
 ### JavaScript Test Results
 
 ```text
-Test Suites: 1 passed, 1 total
-Tests:       3 passed, 3 total
+Test Suites: 2 passed, 2 total
+Tests:       8 passed, 8 total
 ```
 
 ## Running All Tests
@@ -116,14 +124,15 @@ npm test
 This will run:
 
 1. Bash tests (25 passing)
-2. JavaScript tests (3 passing)
+2. JavaScript tests (8 passing)
 
-**Total: 28 tests passing** ✅
+**Total: 33 tests passing** ✅
 
 ## Test Files
 
 - `__tests__/action.test.sh` - Bash script tests for action.yml logic
-- `__tests__/main.test.js` - JavaScript tests for main.js
+- `__tests__/main.test.js` - JavaScript tests for main.js (work item linking)
+- `__tests__/validateWorkItem.test.js` - JavaScript tests for validateWorkItem.js (work item validation)
 - `jest.config.js` - Jest configuration
 
 ## Bug Fixes from Testing

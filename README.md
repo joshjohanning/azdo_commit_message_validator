@@ -41,6 +41,7 @@ jobs:
           check-commits: true
           fail-if-missing-workitem-commit-link: true
           link-commits-to-pull-request: true
+          verify-work-items-exist: true # Optional: validate work items actually exist
           azure-devops-organization: my-azdo-org
           azure-devops-token: ${{ secrets.AZURE_DEVOPS_PAT }}
 ```
@@ -53,10 +54,28 @@ jobs:
 | `check-commits`                        | Check each commit in the pull request for `AB#xxx`                                                                             | `true`   | `true`                |
 | `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message           | `false`  | `true`                |
 | `link-commits-to-pull-request`         | Only if `check-commits=true`, link the work items found in commits to the pull request                                         | `false`  | `true`                |
-| `azure-devops-organization`            | Only if `check-commits=true`, link the work items found in commits to the pull request                                         | `false`  | `''`                  |
-| `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT) | `false`  | `''`                  |
+| `verify-work-items-exist`              | Validate that work items referenced in commits/PRs actually exist in Azure DevOps (requires `azure-devops-token` and `azure-devops-organization`) | `false`  | `false`               |
+| `azure-devops-organization`            | Only required if `link-commits-to-pull-request=true` or `verify-work-items-exist=true`, the name of the Azure DevOps organization | `false`  | `''`                  |
+| `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true` or `verify-work-items-exist=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT) | `false`  | `''`                  |
 | `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                          | `true`   | `${{ github.token }}` |
 | `comment-on-failure`                   | Comment on the pull request if the action fails                                                                                | `true`   | `true`                |
+
+### Work Item Validation
+
+The `verify-work-items-exist` feature validates that work items referenced in commits and pull requests actually exist in Azure DevOps. This is useful for catching typos or invalid work item references before merging.
+
+**How it works:**
+- When enabled, the action will make an API call to Azure DevOps for each work item reference found
+- If a work item doesn't exist, the action will fail with a clear error message
+- This feature requires both `azure-devops-token` and `azure-devops-organization` to be configured
+- The feature is optional and defaults to `false` for backward compatibility
+
+**Example scenarios:**
+- ✅ Commit message: `AB#12345 - Fix bug` → Work item 12345 exists → Pass
+- ❌ Commit message: `AB#99999 - Fix bug` → Work item 99999 doesn't exist → Fail
+- ⚠️  No Azure DevOps credentials provided → Warning logged, validation skipped
+
+**Note:** Without this feature enabled, the action only validates that the `AB#123` format is present, but doesn't check if the work item actually exists.
 
 ## Setup
 
