@@ -55,6 +55,12 @@ runs:
           fi
         done
 
+        # validate that at least one check is enabled
+        if [ "${{ inputs.check-commits }}" = "false" ] && [ "${{ inputs.check-pull-request }}" = "false" ]; then
+          echo "::error title=No checks enabled::At least one of 'check-commits' or 'check-pull-request' must be set to true"
+          exit 1
+        fi
+
         # have to do some hocus pocus since this isn't a full javascript action
         main="${GITHUB_ACTION_PATH}/dist/index.js"
         echo "::debug::main.js script location: $main"
