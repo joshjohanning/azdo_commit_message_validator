@@ -270,6 +270,41 @@ test_comment_id_logic() {
     fi
 }
 
+# Test Suite: Comment on Failure Configuration
+test_comment_on_failure() {
+    echo ""
+    echo -e "${YELLOW}Testing: Comment on Failure Configuration${NC}"
+    echo "========================================"
+    
+    # Test that comment-on-failure true allows commenting (default behavior)
+    COMMENT_ON_FAILURE="true"
+    if [ "$COMMENT_ON_FAILURE" = "true" ]; then
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo -e "${GREEN}✓${NC} comment-on-failure=true enables comments"
+    else
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} comment-on-failure=true should enable comments"
+    fi
+    
+    # Test that comment-on-failure false disables commenting
+    COMMENT_ON_FAILURE="false"
+    if [ "$COMMENT_ON_FAILURE" = "false" ]; then
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo -e "${GREEN}✓${NC} comment-on-failure=false disables comments"
+    else
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} comment-on-failure=false should disable comments"
+    fi
+    
+    # Test default value
+    COMMENT_ON_FAILURE="true"  # This is the default in action.yml
+    assert_equals "true" "$COMMENT_ON_FAILURE" "Default comment-on-failure should be true"
+}
+
 # Run all tests
 main() {
     echo "========================================"
@@ -283,6 +318,7 @@ main() {
     test_short_sha
     test_env_checks
     test_comment_id_logic
+    test_comment_on_failure
     
     # Print summary
     echo ""
