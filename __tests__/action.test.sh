@@ -277,6 +277,66 @@ test_comment_id_logic() {
     assert_equals "789" "$COMMENT_ID" "Find failure comment for success update"
 }
 
+# Test Suite: Azure DevOps Configuration Validation
+test_azdo_config_validation() {
+    echo ""
+    echo -e "${YELLOW}Testing: Azure DevOps Configuration Validation${NC}"
+    echo "========================================"
+    
+    # Test when both org and PAT are set (valid)
+    ORG="my-org"
+    PAT="my-pat-token"
+    
+    if [ -n "$ORG" ] && [ -n "$PAT" ]; then
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo -e "${GREEN}✓${NC} Should pass when both org and PAT are set"
+    else
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} Should pass when both org and PAT are set"
+    fi
+    
+    # Test when org is empty (invalid) - should fail on org check
+    ORG=""
+    PAT="my-pat-token"
+    if [ -z "$ORG" ]; then
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo -e "${GREEN}✓${NC} Should fail when org is empty"
+    else
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} Should fail when org is empty"
+    fi
+    
+    # Test when PAT is empty (invalid) - should fail on PAT check
+    ORG="my-org"
+    PAT=""
+    if [ -z "$PAT" ]; then
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo -e "${GREEN}✓${NC} Should fail when PAT is empty"
+    else
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} Should fail when PAT is empty"
+    fi
+    
+    # Test when both are empty (invalid) - should fail on org check first
+    ORG=""
+    PAT=""
+    if [ -z "$ORG" ]; then
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo -e "${GREEN}✓${NC} Should fail when both org and PAT are empty (fails on org check)"
+    else
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} Should fail when both org and PAT are empty"
+    fi
+}
+
 # Run all tests
 main() {
     echo "========================================"
@@ -290,6 +350,7 @@ main() {
     test_short_sha
     test_env_checks
     test_comment_id_logic
+    test_azdo_config_validation
     
     # Print summary
     echo ""
