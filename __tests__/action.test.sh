@@ -277,6 +277,9 @@ test_input_validation() {
     echo "========================================"
     
     # Test that at least one check must be enabled
+    # Note: In action.yml, ${{ inputs.check-commits }} is evaluated to "true"/"false" strings
+    # before the bash script runs, so we test with string literals here
+    
     # Simulate both checks disabled (this should fail)
     CHECK_COMMITS="false"
     CHECK_PR="false"
