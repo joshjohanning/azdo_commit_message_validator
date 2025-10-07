@@ -56,8 +56,11 @@ jobs:
 
 Required software installed on runner:
 
-  - [`gh` (GitHub CLI)](https://cli.github.com/)
-  - [`jq`](https://jqlang.github.io/jq/download/)
+- `bash` (tested with `ubuntu-latest` runner)
+- [`gh` (GitHub CLI)](https://cli.github.com/)
+- [`jq`](https://jqlang.github.io/jq/download/)
+- `grep`
+- `cut`
 
 ## Screenshots
 

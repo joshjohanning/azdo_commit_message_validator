@@ -8,6 +8,11 @@
     "format": "prettier --write '**/*.ts'",
     "format-check": "prettier --check '**/*.ts'",
     "lint": "eslint src/**/*.ts",
+    "test": "npm run test:bash && npm run test:js",
+    "test:bash": "./__tests__/action.test.sh",
+    "test:js": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "package": "ncc build --source-map --license licenses.txt main.js -o dist",
     "all": "npm run format && npm run package"
   },
