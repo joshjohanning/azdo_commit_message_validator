@@ -33,7 +33,7 @@ jobs:
       #   run: npm run lint
 
       # - name: Run formatting check
-      #   run: npm run format:check
+      #   run: npm run format-check
 
       # TODO: add tests
       # - name: Run tests
