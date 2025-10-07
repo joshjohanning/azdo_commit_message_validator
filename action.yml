@@ -124,7 +124,22 @@ runs:
               exit 1
             else
               echo "PR linked to work item"
-              # TODO: do we want to update or delete the PR comment if it exists b/c previously failed? 
+              
+              # Update existing failure comment if it exists
+              FAILURE_COMMENT=":x: This pull request is not linked to a work item."
+              COMMENTS_CLEAN=$(gh api --paginate ${{ github.event.pull_request.comments_url }} | tr -d '\000-\031')
+              COMMENT_ID=$(echo "$COMMENTS_CLEAN" | jq -r --arg comment "$FAILURE_COMMENT" '.[] | select(.body | contains($comment)) | .id')
+              
+              if [ -n "$COMMENT_ID" ]; then
+                echo "Found existing failure comment: $COMMENT_ID"
+                SUCCESS_COMMENT=":white_check_mark: This pull request is now linked to a work item."
+                CURRENT_DATE_TIME=$(date +"%Y-%m-%d %T")
+                SUCCESS_COMMENT_EXTRA=$'\n\n[View workflow run for details](${{ github.event.repository.html_url }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt}}) _(last ran\: '${CURRENT_DATE_TIME}')_'
+                SUCCESS_COMMENT_COMBINED="${SUCCESS_COMMENT}${SUCCESS_COMMENT_EXTRA}"
+                echo "... attempting to update the PR comment to success"
+                gh api ${{ github.event.repository.url }}/issues/comments/${COMMENT_ID} --method PATCH --field body="${SUCCESS_COMMENT_COMBINED}" > /dev/null
+                echo "... PR comment updated to success"
+              fi
 
               # Extract work items from PR body and title
               WORKITEMS=$(echo "$PULL_BODY $PULL_TITLE" | grep -i -o -E "AB#[0-9]+" | sort | uniq)
