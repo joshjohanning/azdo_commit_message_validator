@@ -1,48 +1,54 @@
 {
-    "name": "azure-devops-work-item-link-enforcer-and-linker",
-    "version": "2.0.0",
-    "private": true,
-    "description": "GitHub Action to enforce that each commit in a pull request be linked to an Azure DevOps work item and automatically link the pull request to each work item ",
-    "main": "dist/index.js",
-    "scripts": {
-    "build": "tsc",
-    "format": "prettier --write '**/*.ts'",
-    "format-check": "prettier --check '**/*.ts'",
+  "name": "azure-devops-work-item-link-enforcer-and-linker",
+  "version": "2.0.1",
+  "private": true,
+  "description": "GitHub Action to enforce that each commit in a pull request be linked to an Azure DevOps work item and automatically link the pull request to each work item ",
+  "main": "dist/index.js",
+  "scripts": {
+    "format": "prettier --write .",
+    "format-check": "prettier --check .",
     "lint": "eslint src/**/*.ts",
-    "package": "ncc build --source-map --license licenses.txt lib/main.js -o dist",
-    "all": "npm run build && npm run format && npm run package"
-    },
-    "repository": {
+    "test": "npm run test:bash && npm run test:js",
+    "test:bash": "./__tests__/action.test.sh",
+    "test:js": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "package": "ncc build --source-map --license licenses.txt main.js -o dist",
+    "all": "npm run format && npm run package"
+  },
+  "repository": {
     "type": "git",
     "url": "git+https://github.com/joshjohanning/azdo_commit_message_validator.git"
-    },
-    "keywords": [
+  },
+  "keywords": [
     "actions",
     "node",
     "setup"
-    ],
-    "author": "dc AG",
-    "license": "MIT",
-    "dependencies": {
+  ],
+  "author": "dc AG",
+  "license": "MIT",
+  "dependencies": {
     "@actions/core": "^1.9.1",
-    "@actions/github": "^5.0.3",
+    "@actions/github": "^6.0.1",
     "azure-devops-node-api": "^11.1.1",
-    "node-fetch": "^2.6.6"
-    },
-    "devDependencies": {
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/mocha": "^9.1.1",
     "@types/node": "^18.0.0",
     "@types/node-fetch": "^2.6.2",
-    "@typescript-eslint/eslint-plugin": "^5.29.0",
-    "@typescript-eslint/parser": "^5.29.0",
+    "@typescript-eslint/eslint-plugin": "^5.40.1",
+    "@typescript-eslint/parser": "^5.40.1",
     "@vercel/ncc": "^0.34.0",
-    "eslint": "^8.18.0",
+    "eslint": "^8.25.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-github": "^4.3.6",
-    "eslint-plugin-jest": "^26.5.3",
+    "eslint-plugin-jest": "^27.1.3",
+    "jest": "^30.2.0",
     "js-yaml": "^4.1.0",
     "nock": "^13.2.7",
     "prettier": "2.7.1",
     "typescript": "^4.7.4"
-    }
+  }
 }
