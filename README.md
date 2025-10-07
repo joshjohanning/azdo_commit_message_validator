@@ -1,11 +1,13 @@
-# Azure DevOps Commit/PR Validator and Pull Request Linker Action
+# Azure DevOps Commit/PR Validator and Commit+Pull Request Linker Action
 
-This is an action to be ran in a pull request to make sure either that one or both of the following scenarios are met:
+This action validates that pull requests and commits contain Azure DevOps work item links (e.g. `AB#123`), and **automatically links the GitHub Pull Request to work items found in commit messages**.
 
-1. Pull request title or body contains an Azure DevOps work item link (e.g. `AB#123`)
-2. Each commit in a pull request has an Azure DevOps work item link (e.g. `AB#123`) in the commit message
-   - Optionally, add a GitHub Pull Request link to the work item in Azure DevOps
-   - By default, Azure DevOps only adds the Pull Request link to work items mentioned directly in the PR title or body
+## Key Features
+
+1. **Validates Pull Requests** - Ensures PR title or body contains an Azure DevOps work item link (e.g. `AB#123`)
+2. **Validates Commits** - Ensures each commit in a pull request has an Azure DevOps work item link (e.g. `AB#123`) in the commit message
+3. **Automatically Links PRs to Work Items** - When a work item is referenced in a commit message, the action adds a GitHub Pull Request link to that work item in Azure DevOps
+   - 🎯 **This is the key differentiator**: By default, Azure DevOps only adds the Pull Request link to work items mentioned directly in the PR title or body, but this action also links work items found in commit messages!
 
 ## Usage
 
