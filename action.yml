@@ -56,7 +56,7 @@ runs:
         done
 
         # have to do some hocus pocus since this isn't a full javascript action
-        main=$(find ../../_actions/joshjohanning/azdo_commit_message_validator/dist -name "index.js")
+        main="${GITHUB_ACTION_PATH}/dist/index.js"
         echo "::debug::main.js script location: $main"
 
         PULL_NUMBER=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
