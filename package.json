@@ -5,12 +5,11 @@
   "description": "GitHub Action to enforce that each commit in a pull request be linked to an Azure DevOps work item and automatically link the pull request to each work item ",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
     "format": "prettier --write '**/*.ts'",
     "format-check": "prettier --check '**/*.ts'",
     "lint": "eslint src/**/*.ts",
-    "package": "ncc build --source-map --license licenses.txt lib/main.js -o dist",
-    "all": "npm run build && npm run format && npm run package"
+    "package": "ncc build --source-map --license licenses.txt main.js -o dist",
+    "all": "npm run format && npm run package"
   },
   "repository": {
     "type": "git",
