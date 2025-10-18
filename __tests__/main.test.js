@@ -63,17 +63,18 @@ describe('Azure DevOps Work Item Linker', () => {
       global.fetch = jest.fn(() => {
         return Promise.resolve({
           status: 200,
-          json: () => Promise.resolve({
-            data: {
-              'ms.vss-work-web.github-link-data-provider': {
-                resolvedLinkItems: [
-                  {
-                    repoInternalId: internalRepoId
-                  }
-                ]
+          json: () =>
+            Promise.resolve({
+              data: {
+                'ms.vss-work-web.github-link-data-provider': {
+                  resolvedLinkItems: [
+                    {
+                      repoInternalId: internalRepoId
+                    }
+                  ]
+                }
               }
-            }
-          })
+            })
         });
       });
 
@@ -99,23 +100,24 @@ describe('Azure DevOps Work Item Linker', () => {
       const internalRepoId = '12345678-1234-1234-1234-123456789abc';
 
       let requestBody;
-      
+
       // Mock global fetch
       global.fetch = jest.fn((url, options) => {
         requestBody = JSON.parse(options.body);
         return Promise.resolve({
           status: 200,
-          json: () => Promise.resolve({
-            data: {
-              'ms.vss-work-web.github-link-data-provider': {
-                resolvedLinkItems: [
-                  {
-                    repoInternalId: internalRepoId
-                  }
-                ]
+          json: () =>
+            Promise.resolve({
+              data: {
+                'ms.vss-work-web.github-link-data-provider': {
+                  resolvedLinkItems: [
+                    {
+                      repoInternalId: internalRepoId
+                    }
+                  ]
+                }
               }
-            }
-          })
+            })
         });
       });
 
