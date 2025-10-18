@@ -15,7 +15,7 @@
     "test:coverage": "npx jest --coverage",
     "coverage": "npx @joshjohanning/make-coverage-badge-better --label-color '#333' --output-path ./badges/coverage.svg",
     "package": "npx @vercel/ncc build --source-map --license licenses.txt main.js -o dist",
-    "all": "npm run format && npm run test:coverage && npm run coverage npm run package"
+    "all": "npm run format && npm run test:coverage && npm run coverage && npm run package"
   },
   "repository": {
     "type": "git",
