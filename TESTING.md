@@ -19,31 +19,25 @@ The bash script tests focus on the core validation and automation logic.
 ### What's Tested
 
 - ✅ **Commit Message Validation** (7 tests)
-
   - Valid formats: `AB#12345`, `ab#12345`, multiple work items
   - Invalid formats: missing AB#, spaces, no number
 
 - ✅ **Pull Request Validation** (5 tests)
-
   - PR title/body validation
   - Case-insensitive matching
 
 - ✅ **Work Item Extraction** (3 tests)
-
   - Extracting work item numbers from messages
   - Handling multiple work items
 
 - ✅ **Duplicate Removal** (1 test)
-
   - Removing duplicate work item references
 
 - ✅ **Short SHA Extraction** (2 tests)
-
   - Extracting first 7 characters for display
   - Handling quoted strings from jq
 
 - ✅ **Environment Checks** (5 tests)
-
   - Verifying required commands exist (bash, jq, cut, grep, gh)
 
 - ✅ **Comment ID Logic** (2 tests)
@@ -75,11 +69,9 @@ Tests for the Azure DevOps work item linking functionality in `main.js`.
 ### Tested Functionality
 
 - ✅ **Basic Functionality** (1 test)
-
   - Verifies run function exists and is callable
 
 - ✅ **Error Handling** (1 test)
-
   - Handles already existing work item links gracefully
 
 - ✅ **API Integration** (1 test)
@@ -248,7 +240,6 @@ npm run test:coverage
 ## Next Steps
 
 1. **Immediate**: The 2 passing tests verify:
-
    - Handling of already existing links works correctly
    - API request structure is correct
 
