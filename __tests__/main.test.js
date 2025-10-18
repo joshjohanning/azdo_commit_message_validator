@@ -1,5 +1,3 @@
-const nock = require('nock');
-
 // Mock @actions/core before importing main
 jest.mock('@actions/core');
 const core = require('@actions/core');
@@ -19,7 +17,6 @@ describe('Azure DevOps Work Item Linker', () => {
 
     // Clear all mocks
     jest.clearAllMocks();
-    nock.cleanAll();
 
     // Set up Azure DevOps API mocks
     mockWorkItemTrackingApi = {
@@ -40,7 +37,6 @@ describe('Azure DevOps Work Item Linker', () => {
   afterEach(() => {
     // Restore original environment
     process.env = originalEnv;
-    nock.cleanAll();
     jest.clearAllTimers();
   });
 
@@ -63,20 +59,23 @@ describe('Azure DevOps Work Item Linker', () => {
 
       const internalRepoId = '12345678-1234-1234-1234-123456789abc';
 
-      // Mock the data provider API
-      const scope = nock('https://dev.azure.com')
-        .post('/test-org/_apis/Contribution/dataProviders/query?api-version=7.1-preview.1')
-        .reply(200, {
-          data: {
-            'ms.vss-work-web.github-link-data-provider': {
-              resolvedLinkItems: [
-                {
-                  repoInternalId: internalRepoId
-                }
-              ]
+      // Mock global fetch
+      global.fetch = jest.fn(() => {
+        return Promise.resolve({
+          status: 200,
+          json: () => Promise.resolve({
+            data: {
+              'ms.vss-work-web.github-link-data-provider': {
+                resolvedLinkItems: [
+                  {
+                    repoInternalId: internalRepoId
+                  }
+                ]
+              }
             }
-          }
+          })
         });
+      });
 
       // Mock the work item API to return "already exists" error
       mockWorkItemTrackingApi.updateWorkItem.mockRejectedValue(new Error('The relation already exists'));
@@ -86,9 +85,6 @@ describe('Azure DevOps Work Item Linker', () => {
 
       // Should not fail when link already exists
       expect(core.setFailed).not.toHaveBeenCalled();
-
-      // Clean up nock
-      nock.cleanAll();
     });
 
     it('should send correct data provider request structure', async () => {
@@ -103,22 +99,25 @@ describe('Azure DevOps Work Item Linker', () => {
       const internalRepoId = '12345678-1234-1234-1234-123456789abc';
 
       let requestBody;
-      const scope = nock('https://dev.azure.com')
-        .post('/test-org/_apis/Contribution/dataProviders/query?api-version=7.1-preview.1', body => {
-          requestBody = body;
-          return true;
-        })
-        .reply(200, {
-          data: {
-            'ms.vss-work-web.github-link-data-provider': {
-              resolvedLinkItems: [
-                {
-                  repoInternalId: internalRepoId
-                }
-              ]
+      
+      // Mock global fetch
+      global.fetch = jest.fn((url, options) => {
+        requestBody = JSON.parse(options.body);
+        return Promise.resolve({
+          status: 200,
+          json: () => Promise.resolve({
+            data: {
+              'ms.vss-work-web.github-link-data-provider': {
+                resolvedLinkItems: [
+                  {
+                    repoInternalId: internalRepoId
+                  }
+                ]
+              }
             }
-          }
+          })
         });
+      });
 
       mockWorkItemTrackingApi.updateWorkItem.mockResolvedValue({ id: 12345 });
 
@@ -130,9 +129,6 @@ describe('Azure DevOps Work Item Linker', () => {
       expect(requestBody.context.properties.workItemId).toBe('12345');
       expect(requestBody.context.properties.urls[0]).toBe('https://github.com/owner/repo/pull/42');
       expect(requestBody.contributionIds[0]).toBe('ms.vss-work-web.github-link-data-provider');
-
-      // Clean up nock
-      nock.cleanAll();
     });
   });
 });

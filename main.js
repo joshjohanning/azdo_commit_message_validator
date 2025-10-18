@@ -81,7 +81,6 @@ const core = __importStar(require('@actions/core'));
 const github = __importStar(require('@actions/github'));
 const azdev = __importStar(require('azure-devops-node-api'));
 const WorkItemTrackingInterfaces_1 = require('azure-devops-node-api/interfaces/WorkItemTrackingInterfaces');
-const node_fetch_1 = __importDefault(require('node-fetch'));
 const relArticaftLink = 'ArtifactLink';
 const relNameGitHubPr = 'GitHub Pull Request';
 const msGitHubLinkDataProviderLink = 'ms.vss-work-web.github-link-data-provider';
@@ -122,7 +121,7 @@ function run() {
       if (true) {
         console.log('Retrieving internalRepoId ...');
         try {
-          const dataProviderResponse = yield (0, node_fetch_1.default)(dataProviderUrl, {
+          const dataProviderResponse = yield fetch(dataProviderUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
