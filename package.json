@@ -13,7 +13,7 @@
     "test:js": "npx jest",
     "test:watch": "npx jest --watch",
     "test:coverage": "npx jest --coverage",
-    "package": "npx @vercel/ncc build --source-map --license licenses.txt main.js -o dist",
+    "package": "npx @vercel/ncc build --source-map --license licenses.txt index.js -o dist",
     "all": "npm run format && npm run package"
   },
   "repository": {
