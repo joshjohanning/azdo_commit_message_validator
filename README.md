@@ -1,5 +1,11 @@
 # Azure DevOps Commit/PR Validator and Commit+Pull Request Linker Action
 
+[![GitHub release](https://img.shields.io/github/release/joshjohanning/azdo_commit_message_validator.svg?logo=github&labelColor=333)](https://github.com/joshjohanning/azdo_commit_message_validator/releases)
+[![GitHub marketplace](https://img.shields.io/badge/marketplace-Azure%20DevOps%20Commit%20Validator%20and%20Pull%20Request%20Linker-blue?logo=github&labelColor=333)](https://github.com/marketplace/actions/azure-devops-commit-validator-and-pull-request-linker)
+[![CI](https://github.com/joshjohanning/azdo_commit_message_validator/actions/workflows/ci.yml/badge.svg)](https://github.com/joshjohanning/azdo_commit_message_validator/actions/workflows/ci.yml)
+[![Publish GitHub Action](https://github.com/joshjohanning/azdo_commit_message_validator/actions/workflows/publish.yml/badge.svg)](https://github.com/joshjohanning/azdo_commit_message_validator/actions/workflows/publish.yml)
+![Coverage](./badges/coverage.svg)
+
 This action validates that pull requests and commits contain Azure DevOps work item links (e.g. `AB#123`), and **automatically links the GitHub Pull Request to work items found in commit messages**.
 
 ## Key Features
