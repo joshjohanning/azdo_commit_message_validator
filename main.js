@@ -150,7 +150,7 @@ function run() {
           console.log(internalRepoId);
           console.log('... success!');
           if (null === internalRepoId || internalRepoId.length === 0) {
-            throw new Error('Internal repo url couldn\'t be resolved.');
+            throw new Error(`Internal repo url couldn't be resolved.`);
           }
           const artifactUrl = `vstfs:///GitHub/PullRequest/${internalRepoId}%2F${prRequestId}`;
           try {
