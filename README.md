@@ -18,7 +18,7 @@ name: pr-commit-message-enforcer-and-linker
 
 on:
   pull_request:
-    branches: ["main"]
+    branches: ['main']
     types:
       - opened
       - synchronize
