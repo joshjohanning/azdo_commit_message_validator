@@ -1,41 +1,41 @@
-name: "Azure DevOps Commit Validator and Pull Request Linker"
-description: "Enforce that each commit in a pull request has AB# in the commit message and link all of the work items to the pull request"
+name: 'Azure DevOps Commit Validator and Pull Request Linker'
+description: 'Enforce that each commit in a pull request has AB# in the commit message and link all of the work items to the pull request'
 
 branding:
-  icon: "user-check"
-  color: "purple"
+  icon: 'user-check'
+  color: 'purple'
 
 inputs:
   check-pull-request:
-    description: "Check the pull request body and title for AB#xxx"
+    description: 'Check the pull request body and title for AB#xxx'
     required: true
-    default: "false"
+    default: 'false'
   check-commits:
-    description: "Check each commit in the pull request for AB#xxx"
+    description: 'Check each commit in the pull request for AB#xxx'
     required: true
-    default: "true"
+    default: 'true'
   fail-if-missing-workitem-commit-link:
-    description: "Only if check-commits=true, fail the action if a commit in the pull request is missing AB# in every commit message"
+    description: 'Only if check-commits=true, fail the action if a commit in the pull request is missing AB# in every commit message'
     required: false
-    default: "true"
+    default: 'true'
   link-commits-to-pull-request:
-    description: "Only if check-commits=true, link the work items found in commits to the pull request"
+    description: 'Only if check-commits=true, link the work items found in commits to the pull request'
     required: false
-    default: "true"
+    default: 'true'
   azure-devops-token:
-    description: "Only required if link-commits-to-pull-request=true, Azure DevOps Personal Access Token to link work item to PR (needs to be a full PAT)"
+    description: 'Only required if link-commits-to-pull-request=true, Azure DevOps Personal Access Token to link work item to PR (needs to be a full PAT)'
     required: false
   azure-devops-organization:
-    description: "Only required if link-commits-to-pull-request=true, the name of the Azure DevOps organization"
+    description: 'Only required if link-commits-to-pull-request=true, the name of the Azure DevOps organization'
     required: false
   github-token:
-    description: "The GitHub token that has contents-read and pull_request-write access"
+    description: 'The GitHub token that has contents-read and pull_request-write access'
     required: true
     default: ${{ github.token }}
   comment-on-failure:
-    description: "Comment on the pull request if the action fails"
+    description: 'Comment on the pull request if the action fails'
     required: true
-    default: "true"
+    default: 'true'
 
 runs:
   using: "node20"
