@@ -64,18 +64,6 @@ jobs:
 | `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                          | `true`   | `${{ github.token }}` |
 | `comment-on-failure`                   | Comment on the pull request if the action fails                                                                                | `true`   | `true`                |
 
-## Setup
-
-### Runner Software Requirements
-
-Required software installed on runner:
-
-- `bash` (tested with `ubuntu-latest` runner)
-- [`gh` (GitHub CLI)](https://cli.github.com/)
-- [`jq`](https://jqlang.github.io/jq/download/)
-- `grep`
-- `cut`
-
 ## Screenshots
 
 ### Failing pull request, including comment back to the pull request showing why it failed
