@@ -42,7 +42,7 @@ describe('Azure DevOps Work Item Linker', () => {
 
   describe('Basic functionality', () => {
     it('should export a run function', () => {
-      const mainModule = require('../main');
+      const mainModule = require('../src/main');
       expect(mainModule.run).toBeDefined();
       expect(typeof mainModule.run).toBe('function');
     });
@@ -81,7 +81,7 @@ describe('Azure DevOps Work Item Linker', () => {
       // Mock the work item API to return "already exists" error
       mockWorkItemTrackingApi.updateWorkItem.mockRejectedValue(new Error('The relation already exists'));
 
-      const { run } = require('../main');
+      const { run } = require('../src/main');
       await run();
 
       // Should not fail when link already exists
@@ -123,7 +123,7 @@ describe('Azure DevOps Work Item Linker', () => {
 
       mockWorkItemTrackingApi.updateWorkItem.mockResolvedValue({ id: 12345 });
 
-      const { run } = require('../main');
+      const { run } = require('../src/main');
       await run();
 
       // Verify request body structure
