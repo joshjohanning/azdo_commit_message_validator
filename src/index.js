@@ -155,7 +155,7 @@ async function checkCommitsForWorkItems(
         context,
         pullNumber,
         `:x: There ${invalidCommits.length === 1 ? 'is' : 'are'} ${invalidCommits.length} commit${invalidCommits.length === 1 ? '' : 's'} in pull request #${pullNumber} not linked to ${invalidCommits.length === 1 ? 'a work item' : 'work items'}. Please amend the commit message${invalidCommits.length === 1 ? '' : 's'} to include a work item reference (AB#xxx) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.${commitDetails}`,
-        `:x: There is at least one commit`
+        `in pull request #${pullNumber} not linked to`
       );
     }
 
