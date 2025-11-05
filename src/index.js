@@ -145,6 +145,13 @@ async function checkCommitsForWorkItems(
         )
         .join('\n');
 
+      // For single commit, include it inline; for multiple, use dropdown
+      const firstCommit = invalidCommits[0];
+      const commitReference =
+        invalidCommits.length === 1
+          ? ` ([\`${firstCommit.shortSha}\`](${context.payload.repository?.html_url}/commit/${firstCommit.sha}))`
+          : '';
+
       const commitDetails =
         invalidCommits.length > 1
           ? `\n\n<details>\n<summary>View all ${invalidCommits.length} commits missing work items</summary>\n\n${commitListItems}\n</details>`
@@ -154,7 +161,7 @@ async function checkCommitsForWorkItems(
         octokit,
         context,
         pullNumber,
-        `:x: There ${invalidCommits.length === 1 ? 'is' : 'are'} ${invalidCommits.length} commit${invalidCommits.length === 1 ? '' : 's'} in pull request #${pullNumber} not linked to ${invalidCommits.length === 1 ? 'a work item' : 'work items'}. Please amend the commit message${invalidCommits.length === 1 ? '' : 's'} to include a work item reference (AB#xxx) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.${commitDetails}`,
+        `:x: There ${invalidCommits.length === 1 ? 'is' : 'are'} ${invalidCommits.length} commit${invalidCommits.length === 1 ? '' : 's'}${commitReference} in pull request #${pullNumber} not linked to ${invalidCommits.length === 1 ? 'a work item' : 'work items'}. Please amend the commit message${invalidCommits.length === 1 ? '' : 's'} to include a work item reference (AB#xxx) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.${commitDetails}`,
         `in pull request #${pullNumber} not linked to`
       );
     }
