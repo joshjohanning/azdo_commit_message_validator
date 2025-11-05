@@ -127,7 +127,7 @@ async function checkCommitsForWorkItems(
   // Handle invalid commits if any were found
   if (invalidCommits.length > 0 && failIfMissingWorkitemCommitLink) {
     const firstInvalidCommit = invalidCommits[0];
-    const errorMessage = `Pull request contains invalid commit: ${firstInvalidCommit.sha}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation.`;
+    const errorMessage = `Pull request contains invalid commit: ${firstInvalidCommit.sha}. This commit lacks an \`AB#xxx\` in the message, in the expected format: \`AB#xxx\` -- failing operation.`;
     console.log('');
     console.log('');
     console.log(errorMessage);
@@ -161,7 +161,7 @@ async function checkCommitsForWorkItems(
         octokit,
         context,
         pullNumber,
-        `:x: There ${invalidCommits.length === 1 ? 'is' : 'are'} ${invalidCommits.length} commit${invalidCommits.length === 1 ? '' : 's'}${commitReference} in pull request #${pullNumber} not linked to ${invalidCommits.length === 1 ? 'a work item' : 'work items'}. Please amend the commit message${invalidCommits.length === 1 ? '' : 's'} to include a work item reference (AB#xxx) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.${commitDetails}`,
+        `:x: There ${invalidCommits.length === 1 ? 'is' : 'are'} ${invalidCommits.length} commit${invalidCommits.length === 1 ? '' : 's'}${commitReference} in pull request #${pullNumber} not linked to ${invalidCommits.length === 1 ? 'a work item' : 'work items'}. Please amend the commit message${invalidCommits.length === 1 ? '' : 's'} to include a work item reference (\`AB#xxx\`) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.${commitDetails}`,
         `in pull request #${pullNumber} not linked to`
       );
     }

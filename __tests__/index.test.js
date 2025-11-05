@@ -719,7 +719,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: [
           {
             id: 888,
-            body: ':x: There is 1 commit (`abc1234`) in pull request #42 not linked to a work item. Please amend the commit message to include a work item reference (AB#xxx) and re-run the failed job to continue.'
+            body: ':x: There is 1 commit (`abc1234`) in pull request #42 not linked to a work item. Please amend the commit message to include a work item reference (`AB#xxx`) and re-run the failed job to continue.'
           }
         ]
       });
