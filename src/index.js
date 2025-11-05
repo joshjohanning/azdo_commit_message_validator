@@ -172,6 +172,35 @@ async function checkCommitsForWorkItems(
     return;
   }
 
+  // All commits are valid - check if there's an existing failure comment to update
+  if (commentOnFailure) {
+    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+      owner,
+      repo,
+      issue_number: pullNumber
+    });
+
+    const existingFailureComment = comments.find(comment =>
+      comment.body?.includes(`in pull request #${pullNumber} not linked to`)
+    );
+
+    if (existingFailureComment) {
+      console.log(`Found existing commit failure comment: ${existingFailureComment.id}`);
+      const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
+      const successCommentCombined = ':white_check_mark: All commits in this pull request are now linked to work items.' + commentExtra;
+
+      console.log('... attempting to update the commit failure comment to success');
+      await octokit.rest.issues.updateComment({
+        owner,
+        repo,
+        comment_id: existingFailureComment.id,
+        body: successCommentCombined
+      });
+      console.log('... commit failure comment updated to success');
+    }
+  }
+
   // Link work items to PR if enabled (after deduplication)
   if (linkCommitsToPullRequest && allWorkItems.length > 0) {
     // Remove duplicates

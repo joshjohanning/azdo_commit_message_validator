@@ -972,6 +972,57 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
     });
 
+    it('should update existing commit failure comment to success when all commits are fixed', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'fail-if-missing-workitem-commit-link') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      // All commits now have work items
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: fixed commit AB#12345'
+            }
+          },
+          {
+            sha: 'def456',
+            commit: {
+              message: 'fix: another commit AB#67890'
+            }
+          }
+        ]
+      });
+
+      // Existing failure comment exists
+      mockOctokit.rest.issues.listComments.mockResolvedValue({
+        data: [
+          {
+            id: 444,
+            body: ':x: There are 2 commits in pull request #42 not linked to work items. Please amend the commit messages to include a work item reference (`AB#xxx`) and re-run the failed job to continue.'
+          }
+        ]
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      // Should update the existing comment to success
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          comment_id: 444,
+          body: expect.stringContaining(':white_check_mark: All commits in this pull request are now linked to work items.')
+        })
+      );
+      expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+    });
+
     it('should handle multiple work items in PR title and body', async () => {
       mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'false';
