@@ -126,7 +126,7 @@ async function checkCommitsForWorkItems(
             octokit,
             context,
             pullNumber,
-            `:x: There is at least one commit (${shortCommitSha}) in pull request #${pullNumber} that is not linked to a work item. Please update the commit message to include a work item reference (AB#xxx) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.`,
+            `:x: There is at least one commit (${shortCommitSha}) in pull request #${pullNumber} that is not linked to a work item. Please amend the commit message(s) to include a work item reference (AB#xxx) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.`,
             `:x: There is at least one commit`
           );
         }
@@ -231,7 +231,7 @@ async function checkPullRequestForWorkItems(octokit, context, pullNumber, commen
     if (existingFailureComment) {
       console.log(`Found existing failure comment: ${existingFailureComment.id}`);
       const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-      const commentExtra = `\n\n[View workflow run for details](${context.payload.repository?.html_url}/actions/runs/${context.runId}) _(last ran: ${currentDateTime})_`;
+      const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId})\n\n_Last ran: ${currentDateTime} UTC_\n</details>`;
       const successCommentCombined = SUCCESS_COMMENT_TEXT + commentExtra;
 
       console.log('... attempting to update the PR comment to success');
@@ -270,7 +270,7 @@ async function checkPullRequestForWorkItems(octokit, context, pullNumber, commen
 async function addOrUpdateComment(octokit, context, pullNumber, commentBody, searchText) {
   const { owner, repo } = context.repo;
   const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-  const commentExtra = `\n\n[View workflow run for details](${context.payload.repository?.html_url}/actions/runs/${context.runId}) _(last ran: ${currentDateTime})_`;
+  const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId})\n\n_Last ran: ${currentDateTime} UTC_\n</details>`;
   const commentCombined = commentBody + commentExtra;
 
   // Get all comments
