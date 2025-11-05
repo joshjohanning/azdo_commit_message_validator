@@ -19,7 +19,7 @@ const AB_PATTERN = /AB#[0-9]+/gi;
  * Main action entry point
  * Validates commits and pull requests for Azure DevOps work item links
  */
-async function run() {
+export async function run() {
   try {
     // Get inputs
     const checkPullRequest = core.getInput('check-pull-request') === 'true';
@@ -99,6 +99,9 @@ async function checkCommitsForWorkItems(
     pull_number: pullNumber
   });
 
+  // Collect all work items from commits for deduplication
+  const allWorkItems = [];
+
   for (const commit of commits) {
     const commitSha = commit.sha;
     const shortCommitSha = commitSha.substring(0, 7);
@@ -137,26 +140,35 @@ async function checkCommitsForWorkItems(
       console.log('valid commit');
       // Extract work item number(s)
       const workItemMatches = commitMessage.match(AB_PATTERN);
-      if (workItemMatches && linkCommitsToPullRequest) {
-        for (const match of workItemMatches) {
-          const workItemId = match.substring(3); // Remove "AB#" prefix
-          console.log(`Workitem = ${workItemId}`);
-
-          console.log(`Attempting to link work item ${workItemId} to pull request ${pullNumber}...`);
-
-          // Set environment variables for main.js
-          process.env.REPO_TOKEN = githubToken;
-          process.env.AZURE_DEVOPS_ORG = azureDevopsOrganization;
-          process.env.AZURE_DEVOPS_PAT = azureDevopsToken;
-          process.env.WORKITEMID = workItemId;
-          process.env.PULLREQUESTID = pullNumber.toString();
-          process.env.REPO = `${context.repo.owner}/${context.repo.repo}`;
-          process.env.GITHUB_SERVER_URL = process.env.GITHUB_SERVER_URL || 'https://github.com';
-
-          await linkWorkItem();
-          console.log('...PR linked to work item');
-        }
+      if (workItemMatches) {
+        // Collect work items for later deduplication
+        allWorkItems.push(...workItemMatches);
       }
+    }
+  }
+
+  // Link work items to PR if enabled (after deduplication)
+  if (linkCommitsToPullRequest && allWorkItems.length > 0) {
+    // Remove duplicates
+    const uniqueWorkItems = [...new Set(allWorkItems)];
+
+    for (const match of uniqueWorkItems) {
+      const workItemId = match.substring(3); // Remove "AB#" prefix
+      console.log(`Workitem = ${workItemId}`);
+
+      console.log(`Attempting to link work item ${workItemId} to pull request ${pullNumber}...`);
+
+      // Set environment variables for main.js
+      process.env.REPO_TOKEN = githubToken;
+      process.env.AZURE_DEVOPS_ORG = azureDevopsOrganization;
+      process.env.AZURE_DEVOPS_PAT = azureDevopsToken;
+      process.env.WORKITEMID = workItemId;
+      process.env.PULLREQUESTID = pullNumber.toString();
+      process.env.REPO = `${context.repo.owner}/${context.repo.repo}`;
+      process.env.GITHUB_SERVER_URL = process.env.GITHUB_SERVER_URL || 'https://github.com';
+
+      await linkWorkItem();
+      console.log('...PR linked to work item');
     }
   }
 }
@@ -292,5 +304,7 @@ async function addOrUpdateComment(octokit, context, pullNumber, commentBody, sea
   }
 }
 
-// Run the action
-run();
+// Run the action (only if not being imported for testing)
+if (process.env.NODE_ENV !== 'test') {
+  run();
+}
