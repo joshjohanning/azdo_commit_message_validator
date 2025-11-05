@@ -1,35 +1,233 @@
 /**
  * Tests for main.js Azure DevOps Work Item Linker
- *
- * These are basic smoke tests. Full integration testing requires actual
- * Azure DevOps and GitHub credentials which are not available in the test environment.
  */
 
+import { jest } from '@jest/globals';
+
+// Mock @actions/core
+const mockSetFailed = jest.fn();
+const mockCore = {
+  setFailed: mockSetFailed
+};
+
+// Mock azure-devops-node-api
+const mockUpdateWorkItem = jest.fn();
+const mockGetWorkItemTrackingApi = jest.fn();
+const mockWebApi = jest.fn();
+const mockGetPersonalAccessTokenHandler = jest.fn();
+
+// Setup module mocks
+jest.unstable_mockModule('@actions/core', () => mockCore);
+jest.unstable_mockModule('azure-devops-node-api', () => ({
+  WebApi: mockWebApi,
+  getPersonalAccessTokenHandler: mockGetPersonalAccessTokenHandler
+}));
+
 describe('Azure DevOps Work Item Linker', () => {
-  describe('Basic module loading', () => {
-    it('should load the module without errors', async () => {
-      // Just verify the module can be imported
+  let originalEnv;
+  let originalFetch;
+
+  beforeEach(() => {
+    // Save original environment and fetch
+    originalEnv = { ...process.env };
+    originalFetch = global.fetch;
+
+    // Clear all mocks
+    jest.clearAllMocks();
+    mockSetFailed.mockClear();
+    mockUpdateWorkItem.mockClear();
+    mockGetWorkItemTrackingApi.mockClear();
+    mockWebApi.mockClear();
+    mockGetPersonalAccessTokenHandler.mockClear();
+
+    // Set up Azure DevOps API mocks
+    mockGetWorkItemTrackingApi.mockResolvedValue({
+      updateWorkItem: mockUpdateWorkItem
+    });
+
+    mockWebApi.mockImplementation(() => ({
+      getWorkItemTrackingApi: mockGetWorkItemTrackingApi
+    }));
+
+    mockGetPersonalAccessTokenHandler.mockReturnValue({});
+
+    // Reset modules to ensure fresh imports
+    jest.resetModules();
+  });
+
+  afterEach(() => {
+    // Restore original environment and fetch
+    process.env = originalEnv;
+    global.fetch = originalFetch;
+    jest.clearAllTimers();
+  });
+
+  describe('Basic functionality', () => {
+    it('should export a run function', async () => {
       const mainModule = await import('../src/main.js');
-      expect(mainModule).toBeDefined();
       expect(mainModule.run).toBeDefined();
       expect(typeof mainModule.run).toBe('function');
     });
-  });
 
-  describe('Environment variable handling', () => {
-    let originalEnv;
+    it('should handle already existing link gracefully', async () => {
+      // Set up environment variables
+      process.env.REPO_TOKEN = 'github-token';
+      process.env.AZURE_DEVOPS_ORG = 'test-org';
+      process.env.AZURE_DEVOPS_PAT = 'azdo-pat';
+      process.env.WORKITEMID = '12345';
+      process.env.GITHUB_SERVER_URL = 'https://github.com';
+      process.env.PULLREQUESTID = '42';
+      process.env.REPO = 'owner/repo';
 
-    beforeEach(() => {
-      originalEnv = { ...process.env };
+      const internalRepoId = '12345678-1234-1234-1234-123456789abc';
+
+      // Mock global fetch
+      global.fetch = jest.fn(() => {
+        return Promise.resolve({
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              data: {
+                'ms.vss-work-web.github-link-data-provider': {
+                  resolvedLinkItems: [
+                    {
+                      repoInternalId: internalRepoId
+                    }
+                  ]
+                }
+              }
+            })
+        });
+      });
+
+      // Mock the work item API to return "already exists" error
+      mockUpdateWorkItem.mockRejectedValue(new Error('The relation already exists'));
+
+      const { run } = await import('../src/main.js');
+      await run();
+
+      // Should not fail when link already exists
+      expect(mockSetFailed).not.toHaveBeenCalled();
     });
 
-    afterEach(() => {
-      process.env = originalEnv;
+    it('should send correct data provider request structure', async () => {
+      process.env.REPO_TOKEN = 'github-token';
+      process.env.AZURE_DEVOPS_ORG = 'test-org';
+      process.env.AZURE_DEVOPS_PAT = 'azdo-pat';
+      process.env.WORKITEMID = '12345';
+      process.env.GITHUB_SERVER_URL = 'https://github.com';
+      process.env.PULLREQUESTID = '42';
+      process.env.REPO = 'owner/repo';
+
+      const internalRepoId = '12345678-1234-1234-1234-123456789abc';
+
+      let requestBody;
+
+      // Mock global fetch
+      global.fetch = jest.fn((url, options) => {
+        requestBody = JSON.parse(options.body);
+        return Promise.resolve({
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              data: {
+                'ms.vss-work-web.github-link-data-provider': {
+                  resolvedLinkItems: [
+                    {
+                      repoInternalId: internalRepoId
+                    }
+                  ]
+                }
+              }
+            })
+        });
+      });
+
+      mockUpdateWorkItem.mockResolvedValue({ id: 12345 });
+
+      const { run } = await import('../src/main.js');
+      await run();
+
+      // Verify request body structure
+      expect(requestBody).toBeDefined();
+      expect(requestBody.context.properties.workItemId).toBe('12345');
+      expect(requestBody.context.properties.urls[0]).toBe('https://github.com/owner/repo/pull/42');
+      expect(requestBody.contributionIds[0]).toBe('ms.vss-work-web.github-link-data-provider');
     });
 
-    it('should have access to environment variables', () => {
-      process.env.TEST_VAR = 'test-value';
-      expect(process.env.TEST_VAR).toBe('test-value');
+    it('should fail when Azure DevOps connection fails', async () => {
+      process.env.REPO_TOKEN = 'github-token';
+      process.env.AZURE_DEVOPS_ORG = 'test-org';
+      process.env.AZURE_DEVOPS_PAT = 'azdo-pat';
+      process.env.WORKITEMID = '12345';
+      process.env.GITHUB_SERVER_URL = 'https://github.com';
+      process.env.PULLREQUESTID = '42';
+      process.env.REPO = 'owner/repo';
+
+      // Mock Azure DevOps connection to fail
+      mockGetWorkItemTrackingApi.mockRejectedValue(new Error('Connection failed'));
+
+      const { run } = await import('../src/main.js');
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith('Failed connection to dev ops!');
+    });
+
+    it('should fail when internal repo ID cannot be resolved', async () => {
+      process.env.REPO_TOKEN = 'github-token';
+      process.env.AZURE_DEVOPS_ORG = 'test-org';
+      process.env.AZURE_DEVOPS_PAT = 'azdo-pat';
+      process.env.WORKITEMID = '12345';
+      process.env.GITHUB_SERVER_URL = 'https://github.com';
+      process.env.PULLREQUESTID = '42';
+      process.env.REPO = 'owner/repo';
+
+      // Mock fetch to return empty internal repo ID
+      global.fetch = jest.fn(() => {
+        return Promise.resolve({
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              data: {
+                'ms.vss-work-web.github-link-data-provider': {
+                  resolvedLinkItems: [
+                    {
+                      repoInternalId: null
+                    }
+                  ]
+                }
+              }
+            })
+        });
+      });
+
+      const { run } = await import('../src/main.js');
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith('Failed retrieve internalRepoId!');
+    });
+
+    it('should handle 401 authorization error', async () => {
+      process.env.REPO_TOKEN = 'github-token';
+      process.env.AZURE_DEVOPS_ORG = 'test-org';
+      process.env.AZURE_DEVOPS_PAT = 'invalid-pat';
+      process.env.WORKITEMID = '12345';
+      process.env.GITHUB_SERVER_URL = 'https://github.com';
+      process.env.PULLREQUESTID = '42';
+      process.env.REPO = 'owner/repo';
+
+      // Mock fetch to return 401
+      global.fetch = jest.fn(() => {
+        return Promise.resolve({
+          status: 401,
+          json: () => Promise.resolve({})
+        });
+      });
+
+      const { run } = await import('../src/main.js');
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith('Failed retrieve internalRepoId!');
     });
   });
 });
