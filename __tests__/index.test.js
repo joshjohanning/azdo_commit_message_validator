@@ -415,5 +415,418 @@ describe('Azure DevOps Commit Validator', () => {
 
       expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('Action failed with error'));
     });
+
+    it('should handle linkWorkItem failures', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'link-commits-to-pull-request') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature AB#12345'
+            }
+          }
+        ]
+      });
+
+      mockLinkWorkItem.mockRejectedValue(new Error('Linking failed'));
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('Action failed with error'));
+    });
+  });
+
+  describe('Edge cases - Work item formats', () => {
+    it('should handle lowercase ab# format', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature ab#12345'
+            }
+          }
+        ]
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should handle multiple work items in single commit', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'link-commits-to-pull-request') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature AB#12345 AB#67890'
+            }
+          }
+        ]
+      });
+
+      mockLinkWorkItem.mockResolvedValue(undefined);
+
+      await run();
+
+      expect(mockLinkWorkItem).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle mixed case Ab# format', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature Ab#99999'
+            }
+          }
+        ]
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Edge cases - Empty/null data', () => {
+    it('should handle PR with null body', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature AB#12345',
+          body: null
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should handle PR with null title', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: null,
+          body: 'This PR implements AB#12345'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should handle PR with empty strings', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: '',
+          body: ''
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+    });
+  });
+
+  describe('Edge cases - Mixed scenarios', () => {
+    it('should handle mixed valid and invalid commits (first one invalid)', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'fail-if-missing-workitem-commit-link') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: no work item'
+            }
+          },
+          {
+            sha: 'def456',
+            commit: {
+              message: 'fix: with work item AB#12345'
+            }
+          }
+        ]
+      });
+
+      await run();
+
+      // Should fail on first invalid commit
+      expect(mockSetFailed).toHaveBeenCalled();
+      expect(mockOctokit.rest.issues.createComment).toHaveBeenCalled();
+    });
+
+    it('should handle both check-commits and check-pull-request enabled', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature AB#12345'
+            }
+          }
+        ]
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature AB#12345',
+          body: 'This is a test PR'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should pass commits but fail PR check', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature AB#12345'
+            }
+          }
+        ]
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'No work item here'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+    });
+  });
+
+  describe('Edge cases - Comment management', () => {
+    it('should update existing commit failure comment', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'fail-if-missing-workitem-commit-link') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: no work item'
+            }
+          }
+        ]
+      });
+
+      mockOctokit.rest.issues.listComments.mockResolvedValue({
+        data: [
+          {
+            id: 888,
+            body: ':x: There is at least one commit (abc1234) in pull request #42'
+          }
+        ]
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          comment_id: 888
+        })
+      );
+    });
+
+    it('should handle multiple work items in PR title and body', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature AB#12345',
+          body: 'This PR also relates to AB#67890 and AB#99999'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should handle duplicate work items across PR title and body', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature AB#12345',
+          body: 'This PR implements AB#12345'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Edge cases - No commits scenario', () => {
+    it('should handle PR with no commits', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'github-token') return 'github-token';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: []
+      });
+
+      await run();
+
+      // Should not fail with empty commits
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Edge cases - Work item linking with missing credentials', () => {
+    it('should attempt linking without failing when credentials are present', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'link-commits-to-pull-request') return 'true';
+        if (name === 'azure-devops-token') return '';
+        if (name === 'azure-devops-organization') return '';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature AB#12345'
+            }
+          }
+        ]
+      });
+
+      mockLinkWorkItem.mockResolvedValue(undefined);
+
+      await run();
+
+      // Should still call linkWorkItem even with empty credentials
+      expect(mockLinkWorkItem).toHaveBeenCalled();
+    });
   });
 });
