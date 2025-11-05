@@ -736,6 +736,242 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
     });
 
+    it('should update comment from 4 invalid commits to 1 invalid commit', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'fail-if-missing-workitem-commit-link') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: no work item'
+            }
+          }
+        ]
+      });
+
+      // Existing comment has 4 commits in dropdown format
+      mockOctokit.rest.issues.listComments.mockResolvedValue({
+        data: [
+          {
+            id: 999,
+            body: ':x: There are 4 commits in pull request #42 not linked to work items. Please amend the commit messages to include a work item reference (`AB#xxx`) and re-run the failed job to continue.\n\n<details>\n<summary>View all 4 commits missing work items</summary>\n\n- `abc1234` - commit 1\n- `def5678` - commit 2\n- `ghi9012` - commit 3\n- `jkl3456` - commit 4\n</details>'
+          }
+        ]
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          comment_id: 999,
+          body: expect.stringContaining('There is 1 commit')
+        })
+      );
+      // Should now be inline format, not dropdown - check that the commit list dropdown is removed
+      const updateCall = mockOctokit.rest.issues.updateComment.mock.calls[0][0];
+      expect(updateCall.body).not.toContain('View all 4 commits');
+      expect(updateCall.body).not.toContain('View all'); // No "View all X commits" text
+      expect(updateCall.body).toContain('Workflow run details'); // But workflow details should still be there
+      expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+    });
+
+    it('should update comment from 1 invalid commit to 4 invalid commits', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'fail-if-missing-workitem-commit-link') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'commit1abc',
+            commit: {
+              message: 'feat: first commit without work item'
+            }
+          },
+          {
+            sha: 'commit2def',
+            commit: {
+              message: 'fix: second commit without work item'
+            }
+          },
+          {
+            sha: 'commit3ghi',
+            commit: {
+              message: 'chore: third commit without work item'
+            }
+          },
+          {
+            sha: 'commit4jkl',
+            commit: {
+              message: 'docs: fourth commit without work item'
+            }
+          }
+        ]
+      });
+
+      // Existing comment has 1 commit in inline format
+      mockOctokit.rest.issues.listComments.mockResolvedValue({
+        data: [
+          {
+            id: 777,
+            body: ':x: There is 1 commit (`abc1234`) in pull request #42 not linked to a work item. Please amend the commit message to include a work item reference (`AB#xxx`) and re-run the failed job to continue.'
+          }
+        ]
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          comment_id: 777,
+          body: expect.stringContaining('There are 4 commits')
+        })
+      );
+      // Should now have dropdown format
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('<details>')
+        })
+      );
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('View all 4 commits missing work items')
+        })
+      );
+      expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+    });
+
+    it('should update comment when 4 invalid commits change to different 4 invalid commits', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'fail-if-missing-workitem-commit-link') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'new1abc123',
+            commit: {
+              message: 'refactor: new commit 1'
+            }
+          },
+          {
+            sha: 'new2def456',
+            commit: {
+              message: 'test: new commit 2'
+            }
+          },
+          {
+            sha: 'new3ghi789',
+            commit: {
+              message: 'style: new commit 3'
+            }
+          },
+          {
+            sha: 'new4jkl012',
+            commit: {
+              message: 'perf: new commit 4'
+            }
+          }
+        ]
+      });
+
+      // Existing comment has different 4 commits
+      mockOctokit.rest.issues.listComments.mockResolvedValue({
+        data: [
+          {
+            id: 666,
+            body: ':x: There are 4 commits in pull request #42 not linked to work items. Please amend the commit messages to include a work item reference (`AB#xxx`) and re-run the failed job to continue.\n\n<details>\n<summary>View all 4 commits missing work items</summary>\n\n- `old1abc` - old commit 1\n- `old2def` - old commit 2\n- `old3ghi` - old commit 3\n- `old4jkl` - old commit 4\n</details>'
+          }
+        ]
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          comment_id: 666,
+          body: expect.stringContaining('There are 4 commits')
+        })
+      );
+      // Should have updated commit SHAs
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('new1abc')
+        })
+      );
+      expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+    });
+
+    it('should update comment with old text format', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'fail-if-missing-workitem-commit-link') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: no work item'
+            }
+          }
+        ]
+      });
+
+      // Old comment format (missing some newer text elements)
+      mockOctokit.rest.issues.listComments.mockResolvedValue({
+        data: [
+          {
+            id: 555,
+            body: ':x: There is at least one commit in pull request #42 not linked to a work item. The commit should be amended.'
+          }
+        ]
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+      // Should still find and update the comment using the search text
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          comment_id: 555
+        })
+      );
+      // Should update to new format
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('There is 1 commit')
+        })
+      );
+      expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+    });
+
     it('should handle multiple work items in PR title and body', async () => {
       mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'false';
