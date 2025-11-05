@@ -101,6 +101,7 @@ async function checkCommitsForWorkItems(
 
   // Collect all work items from commits for deduplication
   const allWorkItems = [];
+  const invalidCommits = [];
 
   for (const commit of commits) {
     const commitSha = commit.sha;
@@ -110,32 +111,8 @@ async function checkCommitsForWorkItems(
     console.log(`Validating new commit: ${commitSha} - ${commitMessage}`);
 
     if (!AB_PATTERN.test(commitMessage)) {
-      // Only fail the action if the input is true
-      if (failIfMissingWorkitemCommitLink) {
-        const errorMessage = `Pull request contains invalid commit: ${commitSha}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation.`;
-        console.log('');
-        console.log('');
-        console.log(errorMessage);
-        core.error(
-          `Commit(s) not linked to work items: There is at least one commit (${shortCommitSha}) in pull request #${pullNumber} that is not linked to a work item`
-        );
-
-        // Add comment to PR if comment-on-failure is true
-        if (commentOnFailure) {
-          await addOrUpdateComment(
-            octokit,
-            context,
-            pullNumber,
-            `:x: There is at least one commit (${shortCommitSha}) in pull request #${pullNumber} that is not linked to a work item. Please amend the commit message(s) to include a work item reference (AB#xxx) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.`,
-            `:x: There is at least one commit`
-          );
-        }
-
-        core.setFailed(
-          `There is at least one commit (${shortCommitSha}) in pull request #${pullNumber} that is not linked to a work item`
-        );
-        return;
-      }
+      // Collect invalid commits
+      invalidCommits.push({ sha: commitSha, shortSha: shortCommitSha, message: commitMessage });
     } else {
       console.log('valid commit');
       // Extract work item number(s)
@@ -145,6 +122,47 @@ async function checkCommitsForWorkItems(
         allWorkItems.push(...workItemMatches);
       }
     }
+  }
+
+  // Handle invalid commits if any were found
+  if (invalidCommits.length > 0 && failIfMissingWorkitemCommitLink) {
+    const firstInvalidCommit = invalidCommits[0];
+    const errorMessage = `Pull request contains invalid commit: ${firstInvalidCommit.sha}. This commit lacks an AB#xxx in the message, in the expected format: AB#xxx -- failing operation.`;
+    console.log('');
+    console.log('');
+    console.log(errorMessage);
+    core.error(
+      `Commit(s) not linked to work items: There ${invalidCommits.length === 1 ? 'is' : 'are'} ${invalidCommits.length} commit${invalidCommits.length === 1 ? '' : 's'} in pull request #${pullNumber} not linked to work items`
+    );
+
+    // Add comment to PR if comment-on-failure is true
+    if (commentOnFailure) {
+      // Build the commit list for the dropdown
+      const commitListItems = invalidCommits
+        .map(
+          c =>
+            `- [\`${c.shortSha}\`](${context.payload.repository?.html_url}/commit/${c.sha}) - ${c.message.split('\n')[0]}`
+        )
+        .join('\n');
+
+      const commitDetails =
+        invalidCommits.length > 1
+          ? `\n\n<details>\n<summary>View all ${invalidCommits.length} commits missing work items</summary>\n\n${commitListItems}\n</details>`
+          : '';
+
+      await addOrUpdateComment(
+        octokit,
+        context,
+        pullNumber,
+        `:x: There ${invalidCommits.length === 1 ? 'is' : 'are'} ${invalidCommits.length} commit${invalidCommits.length === 1 ? '' : 's'} in pull request #${pullNumber} not linked to ${invalidCommits.length === 1 ? 'a work item' : 'work items'}. Please amend the commit message${invalidCommits.length === 1 ? '' : 's'} to include a work item reference (AB#xxx) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.${commitDetails}`,
+        `:x: There is at least one commit`
+      );
+    }
+
+    core.setFailed(
+      `There ${invalidCommits.length === 1 ? 'is' : 'are'} ${invalidCommits.length} commit${invalidCommits.length === 1 ? '' : 's'} in pull request #${pullNumber} not linked to work items`
+    );
+    return;
   }
 
   // Link work items to PR if enabled (after deduplication)
