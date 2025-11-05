@@ -61,7 +61,7 @@ describe('Azure DevOps Commit Validator', () => {
     jest.clearAllMocks();
 
     // Setup default mock implementations
-    mockGetInput.mockImplementation((name) => {
+    mockGetInput.mockImplementation(name => {
       const defaults = {
         'check-pull-request': 'false',
         'check-commits': 'true',
@@ -96,7 +96,7 @@ describe('Azure DevOps Commit Validator', () => {
           listComments: jest.fn().mockResolvedValue({ data: [] })
         }
       },
-      paginate: jest.fn().mockImplementation(async (method) => {
+      paginate: jest.fn().mockImplementation(async method => {
         // For paginate, just return the data from the mocked method
         const result = await method();
         return result.data || [];
@@ -124,12 +124,12 @@ describe('Azure DevOps Commit Validator', () => {
 
   describe('Commit validation', () => {
     it('should pass when all commits have work item links', async () => {
-      mockGetInput.mockImplementation((name) => {
+      mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'true';
-        if (name === 'check-pull-request') return 'false';  // Don't check PR
+        if (name === 'check-pull-request') return 'false'; // Don't check PR
         if (name === 'fail-if-missing-workitem-commit-link') return 'true';
         if (name === 'github-token') return 'github-token';
-        if (name === 'comment-on-failure') return 'false';  // Don't comment
+        if (name === 'comment-on-failure') return 'false'; // Don't comment
         return 'false';
       });
 
@@ -156,9 +156,9 @@ describe('Azure DevOps Commit Validator', () => {
     });
 
     it('should fail when commit is missing work item link', async () => {
-      mockGetInput.mockImplementation((name) => {
+      mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'true';
-        if (name === 'check-pull-request') return 'false';  // Don't check PR
+        if (name === 'check-pull-request') return 'false'; // Don't check PR
         if (name === 'fail-if-missing-workitem-commit-link') return 'true';
         if (name === 'github-token') return 'github-token';
         if (name === 'comment-on-failure') return 'true';
@@ -183,12 +183,12 @@ describe('Azure DevOps Commit Validator', () => {
     });
 
     it('should not fail when failIfMissingWorkitemCommitLink is false', async () => {
-      mockGetInput.mockImplementation((name) => {
+      mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'true';
-        if (name === 'check-pull-request') return 'false';  // Don't check PR
+        if (name === 'check-pull-request') return 'false'; // Don't check PR
         if (name === 'fail-if-missing-workitem-commit-link') return 'false';
         if (name === 'github-token') return 'github-token';
-        if (name === 'comment-on-failure') return 'false';  // Don't comment
+        if (name === 'comment-on-failure') return 'false'; // Don't comment
         return 'false';
       });
 
@@ -209,14 +209,14 @@ describe('Azure DevOps Commit Validator', () => {
     });
 
     it('should link work items when enabled', async () => {
-      mockGetInput.mockImplementation((name) => {
+      mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'true';
-        if (name === 'check-pull-request') return 'false';  // Don't check PR
+        if (name === 'check-pull-request') return 'false'; // Don't check PR
         if (name === 'link-commits-to-pull-request') return 'true';
         if (name === 'azure-devops-token') return 'azdo-token';
         if (name === 'azure-devops-organization') return 'test-org';
         if (name === 'github-token') return 'github-token';
-        if (name === 'comment-on-failure') return 'false';  // Don't comment
+        if (name === 'comment-on-failure') return 'false'; // Don't comment
         return 'false';
       });
 
@@ -240,14 +240,14 @@ describe('Azure DevOps Commit Validator', () => {
     });
 
     it('should handle duplicate work items', async () => {
-      mockGetInput.mockImplementation((name) => {
+      mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'true';
-        if (name === 'check-pull-request') return 'false';  // Don't check PR
+        if (name === 'check-pull-request') return 'false'; // Don't check PR
         if (name === 'link-commits-to-pull-request') return 'true';
         if (name === 'azure-devops-token') return 'azdo-token';
         if (name === 'azure-devops-organization') return 'test-org';
         if (name === 'github-token') return 'github-token';
-        if (name === 'comment-on-failure') return 'false';  // Don't comment
+        if (name === 'comment-on-failure') return 'false'; // Don't comment
         return 'false';
       });
 
@@ -279,11 +279,11 @@ describe('Azure DevOps Commit Validator', () => {
 
   describe('Pull request validation', () => {
     it('should pass when PR has work item in title', async () => {
-      mockGetInput.mockImplementation((name) => {
-        if (name === 'check-commits') return 'false';  // Don't check commits
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false'; // Don't check commits
         if (name === 'check-pull-request') return 'true';
         if (name === 'github-token') return 'github-token';
-        if (name === 'comment-on-failure') return 'false';  // Don't comment
+        if (name === 'comment-on-failure') return 'false'; // Don't comment
         return 'false';
       });
 
@@ -300,11 +300,11 @@ describe('Azure DevOps Commit Validator', () => {
     });
 
     it('should pass when PR has work item in body', async () => {
-      mockGetInput.mockImplementation((name) => {
-        if (name === 'check-commits') return 'false';  // Don't check commits
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false'; // Don't check commits
         if (name === 'check-pull-request') return 'true';
         if (name === 'github-token') return 'github-token';
-        if (name === 'comment-on-failure') return 'false';  // Don't comment
+        if (name === 'comment-on-failure') return 'false'; // Don't comment
         return 'false';
       });
 
@@ -321,8 +321,8 @@ describe('Azure DevOps Commit Validator', () => {
     });
 
     it('should fail when PR has no work item link', async () => {
-      mockGetInput.mockImplementation((name) => {
-        if (name === 'check-commits') return 'false';  // Don't check commits
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false'; // Don't check commits
         if (name === 'check-pull-request') return 'true';
         if (name === 'github-token') return 'github-token';
         if (name === 'comment-on-failure') return 'true';
@@ -343,8 +343,8 @@ describe('Azure DevOps Commit Validator', () => {
     });
 
     it('should update existing failure comment when PR passes', async () => {
-      mockGetInput.mockImplementation((name) => {
-        if (name === 'check-commits') return 'false';  // Don't check commits
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false'; // Don't check commits
         if (name === 'check-pull-request') return 'true';
         if (name === 'github-token') return 'github-token';
         if (name === 'comment-on-failure') return 'true';
@@ -380,7 +380,7 @@ describe('Azure DevOps Commit Validator', () => {
 
   describe('Comment management', () => {
     it('should not comment when comment-on-failure is false', async () => {
-      mockGetInput.mockImplementation((name) => {
+      mockGetInput.mockImplementation(name => {
         if (name === 'check-pull-request') return 'true';
         if (name === 'github-token') return 'github-token';
         if (name === 'comment-on-failure') return 'false';
@@ -403,7 +403,7 @@ describe('Azure DevOps Commit Validator', () => {
 
   describe('Error handling', () => {
     it('should handle errors gracefully', async () => {
-      mockGetInput.mockImplementation((name) => {
+      mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'true';
         if (name === 'github-token') return 'github-token';
         return 'false';
