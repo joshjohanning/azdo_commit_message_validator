@@ -249,7 +249,7 @@ async function checkPullRequestForWorkItems(octokit, context, pullNumber, commen
     if (existingFailureComment) {
       console.log(`Found existing failure comment: ${existingFailureComment.id}`);
       const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-      const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId})\n\n_Last ran: ${currentDateTime} UTC_\n</details>`;
+      const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_\n</details>`;
       const successCommentCombined = SUCCESS_COMMENT_TEXT + commentExtra;
 
       console.log('... attempting to update the PR comment to success');
