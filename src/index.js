@@ -295,7 +295,7 @@ async function checkPullRequestForWorkItems(octokit, context, pullNumber, commen
 async function addOrUpdateComment(octokit, context, pullNumber, commentBody, searchText) {
   const { owner, repo } = context.repo;
   const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-  const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId})\n\n_Last ran: ${currentDateTime} UTC_\n</details>`;
+  const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_\n</details>`;
   const commentCombined = commentBody + commentExtra;
 
   // Get all comments
