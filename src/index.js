@@ -43,9 +43,12 @@ export async function run() {
 
     const octokit = github.getOctokit(githubToken);
 
+    // Store work item to commit mapping if we check commits
+    let workItemToCommitMap = new Map();
+
     // Check commits
     if (checkCommits) {
-      await checkCommitsForWorkItems(
+      workItemToCommitMap = await checkCommitsForWorkItems(
         octokit,
         context,
         pullNumber,
@@ -68,7 +71,8 @@ export async function run() {
         commentOnFailure,
         validateWorkItemExistsFlag,
         azureDevopsOrganization,
-        azureDevopsToken
+        azureDevopsToken,
+        workItemToCommitMap
       );
     }
   } catch (error) {
@@ -113,6 +117,7 @@ async function checkCommitsForWorkItems(
 
   // Collect all work items from commits for deduplication
   const allWorkItems = [];
+  const workItemToCommitMap = new Map(); // Track which commit each work item comes from
   const invalidCommits = [];
 
   for (const commit of commits) {
@@ -132,6 +137,13 @@ async function checkCommitsForWorkItems(
       if (workItemMatches) {
         // Collect work items for later deduplication
         allWorkItems.push(...workItemMatches);
+        // Track which commit each work item comes from (first occurrence)
+        for (const match of workItemMatches) {
+          const workItemId = match.substring(3);
+          if (!workItemToCommitMap.has(workItemId)) {
+            workItemToCommitMap.set(workItemId, { sha: commitSha, shortSha: shortCommitSha });
+          }
+        }
       }
     }
   }
@@ -240,9 +252,19 @@ async function checkCommitsForWorkItems(
 
       // Add comment to PR if comment-on-failure is true
       if (commentOnFailure) {
+        const workItemListItems = invalidWorkItems
+          .map(id => {
+            const commitInfo = workItemToCommitMap.get(id);
+            if (commitInfo) {
+              return `- AB#${id} (commit [\`${commitInfo.shortSha}\`](${context.payload.repository?.html_url}/commit/${commitInfo.sha}))`;
+            }
+            return `- AB#${id} (in PR title/body)`;
+          })
+          .join('\n');
+
         const workItemList =
           invalidWorkItems.length > 1
-            ? `\n\n<details>\n<summary>View all ${invalidWorkItems.length} invalid work items</summary>\n\n${invalidWorkItems.map(id => `- AB#${id}`).join('\n')}\n</details>`
+            ? `\n\n<details>\n<summary>View all ${invalidWorkItems.length} invalid work items</summary>\n\n${workItemListItems}\n</details>`
             : '';
 
         // For single work item, include it inline; for multiple, use dropdown only
@@ -315,6 +337,9 @@ async function checkCommitsForWorkItems(
       await linkWorkItem();
     }
   }
+
+  // Return the workItemToCommitMap for use in PR validation
+  return workItemToCommitMap;
 }
 
 /**
@@ -327,6 +352,7 @@ async function checkCommitsForWorkItems(
  * @param {boolean} validateWorkItemExistsFlag - Whether to validate work items exist in Azure DevOps
  * @param {string} azureDevopsOrganization - Azure DevOps organization name
  * @param {string} azureDevopsToken - Azure DevOps PAT token
+ * @param {Map} workItemToCommitMap - Map of work item IDs to commit info from checkCommitsForWorkItems
  */
 async function checkPullRequestForWorkItems(
   octokit,
@@ -335,7 +361,8 @@ async function checkPullRequestForWorkItems(
   commentOnFailure,
   validateWorkItemExistsFlag,
   azureDevopsOrganization,
-  azureDevopsToken
+  azureDevopsToken,
+  workItemToCommitMap
 ) {
   const { owner, repo } = context.repo;
 
@@ -431,9 +458,19 @@ async function checkPullRequestForWorkItems(
 
           // Add comment to PR if comment-on-failure is true
           if (commentOnFailure) {
+            const workItemListItems = invalidWorkItems
+              .map(id => {
+                const commitInfo = workItemToCommitMap.get(id);
+                if (commitInfo) {
+                  return `- AB#${id} (commit [\`${commitInfo.shortSha}\`](${context.payload.repository?.html_url}/commit/${commitInfo.sha}))`;
+                }
+                return `- AB#${id} (in PR title/body)`;
+              })
+              .join('\n');
+
             const workItemList =
               invalidWorkItems.length > 1
-                ? `\n\n<details>\n<summary>View all ${invalidWorkItems.length} invalid work items</summary>\n\n${invalidWorkItems.map(id => `- AB#${id}`).join('\n')}\n</details>`
+                ? `\n\n<details>\n<summary>View all ${invalidWorkItems.length} invalid work items</summary>\n\n${workItemListItems}\n</details>`
                 : '';
 
             // For single work item, include it inline; for multiple, use dropdown only
