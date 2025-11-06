@@ -209,9 +209,7 @@ async function checkCommitsForWorkItems(
 
     for (const match of uniqueWorkItems) {
       const workItemId = match.substring(3); // Remove "AB#" prefix
-      console.log(`Workitem = ${workItemId}`);
-
-      console.log(`Attempting to link work item ${workItemId} to pull request ${pullNumber}...`);
+      console.log(`Linking work item ${workItemId} to pull request ${pullNumber}...`);
 
       // Set environment variables for main.js
       process.env.REPO_TOKEN = githubToken;
@@ -223,7 +221,6 @@ async function checkCommitsForWorkItems(
       process.env.GITHUB_SERVER_URL = process.env.GITHUB_SERVER_URL || 'https://github.com';
 
       await linkWorkItem();
-      console.log('...PR linked to work item');
     }
   }
 }
@@ -307,7 +304,7 @@ async function checkPullRequestForWorkItems(octokit, context, pullNumber, commen
       // Loop through each work item
       for (const workItem of uniqueWorkItems) {
         const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
-        console.log(`Pull request linked to work item number: ${workItemNumber}`);
+        console.log(`PR title/body contains work item: ${workItemNumber}`);
       }
     }
   }
