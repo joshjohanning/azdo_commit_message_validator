@@ -1454,5 +1454,61 @@ describe('Azure DevOps Commit Validator', () => {
       );
       expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
     });
+
+    it('should combine invalid work items from both commits and PR title/body into ONE comment', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'validate-work-item-exists') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      // Commit has invalid work item AB#555558
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123def456',
+            commit: {
+              message: 'feat: add feature AB#555558'
+            }
+          }
+        ]
+      });
+
+      // PR body has invalid work item AB#55555555
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'Related to AB#55555555'
+        }
+      });
+
+      mockOctokit.rest.issues.listComments.mockResolvedValue({
+        data: []
+      });
+
+      // Mock both work items as invalid
+      mockValidateWorkItemExists.mockResolvedValue(false);
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+
+      // Should create ONE comment with both invalid work items
+      expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledTimes(1);
+      expect(mockOctokit.rest.issues.updateComment).not.toHaveBeenCalled();
+
+      const commentCall = mockOctokit.rest.issues.createComment.mock.calls[0][0];
+      expect(commentCall.body).toContain('There are 2 work items');
+      expect(commentCall.body).toContain('AB#555558');
+      expect(commentCall.body).toContain('AB#55555555');
+      // Should show which came from commit vs PR body
+      expect(commentCall.body).toContain('`AB#555558` (commit [`abc123d`]');
+      expect(commentCall.body).toContain('`AB#55555555` (in PR title/body)');
+    });
   });
 });
