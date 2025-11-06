@@ -123,7 +123,7 @@ export async function run() {
     } catch (exception) {
       hasError = true;
       console.log(`... failed! ${exception}`);
-      core.setFailed(`Failed retrieve internalRepoId!`);
+      core.setFailed(`Failed to retrieve internalRepoId!`);
       return;
     }
 
