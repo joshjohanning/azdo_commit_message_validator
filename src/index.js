@@ -108,7 +108,7 @@ export async function run() {
 
       const workItemList =
         allInvalidWorkItems.length > 1
-          ? `\n\n<details>\n<summary>View all ${allInvalidWorkItems.length} invalid work items</summary>\n\n${workItemListItems}</details>`
+          ? `\n\n<details>\n<summary>View all ${allInvalidWorkItems.length} invalid work items</summary>\n${workItemListItems}</details>`
           : '';
 
       // For single work item, include it inline; for multiple, use dropdown only
@@ -266,7 +266,7 @@ async function checkCommitsForWorkItems(
 
       const commitDetails =
         invalidCommits.length > 1
-          ? `\n\n<details>\n<summary>View all ${invalidCommits.length} commits missing work items</summary>\n\n${commitListItems}</details>`
+          ? `\n\n<details>\n<summary>View all ${invalidCommits.length} commits missing work items</summary>\n${commitListItems}</details>`
           : '';
 
       await addOrUpdateComment(
