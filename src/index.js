@@ -245,12 +245,15 @@ async function checkCommitsForWorkItems(
             ? `\n\n<details>\n<summary>View all ${invalidWorkItems.length} invalid work items</summary>\n\n${invalidWorkItems.map(id => `- AB#${id}`).join('\n')}\n</details>`
             : '';
 
+        // For single work item, include it inline; for multiple, use dropdown only
+        const workItemReference = invalidWorkItems.length === 1 ? ` (AB#${invalidWorkItems[0]})` : '';
+
         await addOrUpdateComment(
           octokit,
           context,
           pullNumber,
-          `:x: There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'} (${invalidWorkItems.map(id => `AB#${id}`).join(', ')}) in pull request #${pullNumber} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps. Please verify the work item${invalidWorkItems.length === 1 ? '' : 's'} and update the commit message${invalidWorkItems.length === 1 ? '' : 's'} or PR title/body.${workItemList}`,
-          `work item${invalidWorkItems.length === 1 ? '' : 's'} (${invalidWorkItems.map(id => `AB#${id}`).join(', ')}) in pull request #${pullNumber} that`
+          `:x: There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'}${workItemReference} in pull request #${pullNumber} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps. Please verify the work item${invalidWorkItems.length === 1 ? '' : 's'} and update the commit message${invalidWorkItems.length === 1 ? '' : 's'} or PR title/body.${workItemList}`,
+          `in pull request #${pullNumber} that`
         );
       }
 
@@ -433,12 +436,15 @@ async function checkPullRequestForWorkItems(
                 ? `\n\n<details>\n<summary>View all ${invalidWorkItems.length} invalid work items</summary>\n\n${invalidWorkItems.map(id => `- AB#${id}`).join('\n')}\n</details>`
                 : '';
 
+            // For single work item, include it inline; for multiple, use dropdown only
+            const workItemReference = invalidWorkItems.length === 1 ? ` (AB#${invalidWorkItems[0]})` : '';
+
             await addOrUpdateComment(
               octokit,
               context,
               pullNumber,
-              `:x: There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'} (${invalidWorkItems.map(id => `AB#${id}`).join(', ')}) in pull request #${pullNumber} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps. Please verify the work item${invalidWorkItems.length === 1 ? '' : 's'} in the PR title/body.${workItemList}`,
-              `work item${invalidWorkItems.length === 1 ? '' : 's'} (${invalidWorkItems.map(id => `AB#${id}`).join(', ')}) in pull request #${pullNumber} that`
+              `:x: There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'}${workItemReference} in pull request #${pullNumber} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps. Please verify the work item${invalidWorkItems.length === 1 ? '' : 's'} in the PR title/body.${workItemList}`,
+              `in pull request #${pullNumber} that`
             );
           }
 
