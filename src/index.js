@@ -108,7 +108,7 @@ export async function run() {
 
       const workItemList =
         allInvalidWorkItems.length > 1
-          ? `\n\n<details>\n<summary>View all ${allInvalidWorkItems.length} invalid work items</summary>\n\n${workItemListItems}\n</details>`
+          ? `\n\n<details>\n<summary>View all ${allInvalidWorkItems.length} invalid work items</summary>\n\n${workItemListItems}</details>`
           : '';
 
       // For single work item, include it inline; for multiple, use dropdown only
@@ -266,7 +266,7 @@ async function checkCommitsForWorkItems(
 
       const commitDetails =
         invalidCommits.length > 1
-          ? `\n\n<details>\n<summary>View all ${invalidCommits.length} commits missing work items</summary>\n\n${commitListItems}\n</details>`
+          ? `\n\n<details>\n<summary>View all ${invalidCommits.length} commits missing work items</summary>\n\n${commitListItems}</details>`
           : '';
 
       await addOrUpdateComment(
@@ -438,7 +438,7 @@ async function checkPullRequestForWorkItems(
     if (existingFailureComment) {
       console.log(`Found existing failure comment: ${existingFailureComment.id}`);
       const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-      const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_\n</details>`;
+      const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
       const successCommentCombined = SUCCESS_COMMENT_TEXT + commentExtra;
 
       console.log('... attempting to update the PR comment to success');
@@ -510,7 +510,7 @@ async function checkPullRequestForWorkItems(
 async function addOrUpdateComment(octokit, context, pullNumber, commentBody, searchText) {
   const { owner, repo } = context.repo;
   const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-  const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_\n</details>`;
+  const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
   const commentCombined = commentBody + commentExtra;
 
   // Get all comments
