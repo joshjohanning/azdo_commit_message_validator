@@ -10,7 +10,7 @@
 
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { run as linkWorkItem } from './main.js';
+import { run as linkWorkItem } from './link-work-item.js';
 
 /** Regex pattern to match Azure DevOps work item references (AB#123) */
 const AB_PATTERN = /AB#[0-9]+/gi;

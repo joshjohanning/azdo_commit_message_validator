@@ -5,7 +5,7 @@
  * This module is responsible for creating the connection between a GitHub PR
  * and an Azure DevOps work item.
  *
- * @module main
+ * @module link-work-item
  */
 
 import * as core from '@actions/core';

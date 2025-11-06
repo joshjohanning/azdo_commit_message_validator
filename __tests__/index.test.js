@@ -37,9 +37,9 @@ jest.unstable_mockModule('@actions/github', () => ({
   context: mockContext
 }));
 
-// Mock ./main.js
+// Mock ./link-work-item.js
 const mockLinkWorkItem = jest.fn();
-jest.unstable_mockModule('../src/main.js', () => ({
+jest.unstable_mockModule('../src/link-work-item.js', () => ({
   run: mockLinkWorkItem
 }));
 

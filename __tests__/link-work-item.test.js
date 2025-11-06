@@ -1,5 +1,5 @@
 /**
- * Tests for main.js Azure DevOps Work Item Linker
+ * Tests for link-work-item.js Azure DevOps Work Item Linker
  */
 
 import { jest } from '@jest/globals';
@@ -64,7 +64,7 @@ describe('Azure DevOps Work Item Linker', () => {
 
   describe('Basic functionality', () => {
     it('should export a run function', async () => {
-      const mainModule = await import('../src/main.js');
+      const mainModule = await import('../src/link-work-item.js');
       expect(mainModule.run).toBeDefined();
       expect(typeof mainModule.run).toBe('function');
     });
@@ -103,7 +103,7 @@ describe('Azure DevOps Work Item Linker', () => {
       // Mock the work item API to return "already exists" error
       mockUpdateWorkItem.mockRejectedValue(new Error('The relation already exists'));
 
-      const { run } = await import('../src/main.js');
+      const { run } = await import('../src/link-work-item.js');
       await run();
 
       // Should not fail when link already exists
@@ -145,7 +145,7 @@ describe('Azure DevOps Work Item Linker', () => {
 
       mockUpdateWorkItem.mockResolvedValue({ id: 12345 });
 
-      const { run } = await import('../src/main.js');
+      const { run } = await import('../src/link-work-item.js');
       await run();
 
       // Verify request body structure
@@ -167,7 +167,7 @@ describe('Azure DevOps Work Item Linker', () => {
       // Mock Azure DevOps connection to fail
       mockGetWorkItemTrackingApi.mockRejectedValue(new Error('Connection failed'));
 
-      const { run } = await import('../src/main.js');
+      const { run } = await import('../src/link-work-item.js');
       await run();
 
       expect(mockSetFailed).toHaveBeenCalledWith('Failed connection to dev ops!');
@@ -201,7 +201,7 @@ describe('Azure DevOps Work Item Linker', () => {
         });
       });
 
-      const { run } = await import('../src/main.js');
+      const { run } = await import('../src/link-work-item.js');
       await run();
 
       expect(mockSetFailed).toHaveBeenCalledWith('Failed retrieve internalRepoId!');
@@ -224,7 +224,7 @@ describe('Azure DevOps Work Item Linker', () => {
         });
       });
 
-      const { run } = await import('../src/main.js');
+      const { run } = await import('../src/link-work-item.js');
       await run();
 
       expect(mockSetFailed).toHaveBeenCalledWith('Failed retrieve internalRepoId!');
