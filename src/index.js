@@ -53,7 +53,6 @@ export async function run() {
     // Store work item to commit mapping and validation results
     let workItemToCommitMap = new Map();
     let invalidWorkItemsFromCommits = [];
-    let hasCommitFailures = false;
 
     // Check commits
     if (checkCommits) {
@@ -71,7 +70,6 @@ export async function run() {
       );
       workItemToCommitMap = commitResults.workItemToCommitMap;
       invalidWorkItemsFromCommits = commitResults.invalidWorkItems;
-      hasCommitFailures = commitResults.hasCommitFailures;
     }
 
     // Check pull request
