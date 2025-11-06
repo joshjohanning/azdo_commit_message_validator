@@ -207,7 +207,7 @@ describe('Azure DevOps Work Item Linker', () => {
       const { run } = await import('../src/link-work-item.js');
       await run();
 
-      expect(mockSetFailed).toHaveBeenCalledWith('Failed retrieve internalRepoId!');
+      expect(mockSetFailed).toHaveBeenCalledWith('Failed to retrieve internalRepoId!');
     });
 
     it('should handle 401 authorization error', async () => {
@@ -230,7 +230,7 @@ describe('Azure DevOps Work Item Linker', () => {
       const { run } = await import('../src/link-work-item.js');
       await run();
 
-      expect(mockSetFailed).toHaveBeenCalledWith('Failed retrieve internalRepoId!');
+      expect(mockSetFailed).toHaveBeenCalledWith('Failed to retrieve internalRepoId!');
     });
   });
 

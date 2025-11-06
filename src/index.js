@@ -91,7 +91,6 @@ export async function run() {
     const allInvalidWorkItems = [...new Set([...invalidWorkItemsFromCommits, ...invalidWorkItemsFromPR])];
 
     if (allInvalidWorkItems.length > 0 && commentOnFailure) {
-
       // Build the work item list with commit info
       const workItemListItems = allInvalidWorkItems
         .map(id => {
