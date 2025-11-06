@@ -93,7 +93,6 @@ export async function run() {
     const allInvalidWorkItems = [...new Set([...invalidWorkItemsFromCommits, ...invalidWorkItemsFromPR])];
 
     if (allInvalidWorkItems.length > 0 && commentOnFailure) {
-      const { owner, repo } = context.repo;
 
       // Build the work item list with commit info
       const workItemListItems = allInvalidWorkItems

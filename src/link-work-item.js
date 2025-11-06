@@ -17,16 +17,17 @@ const relNameGitHubPr = 'GitHub Pull Request';
 const msGitHubLinkDataProviderLink = 'ms.vss-work-web.github-link-data-provider';
 const dataProviderUrlBase = `https://dev.azure.com/%DEVOPS_ORG%/_apis/Contribution/dataProviders/query?api-version=7.1-preview.1`;
 
-let hasError = false;
-let workItem = null;
+
+
 
 /**
  * Link a GitHub Pull Request to an Azure DevOps work item
  * Reads configuration from environment variables set by index.js
  */
 export async function run() {
+  let hasError = false;
+  let workItem = null;
   try {
-    const repoToken = process.env.REPO_TOKEN;
     const devOpsOrg = process.env.AZURE_DEVOPS_ORG;
     const azToken = process.env.AZURE_DEVOPS_PAT;
     const workItemId = process.env.WORKITEMID;
@@ -132,7 +133,7 @@ export async function run() {
     }
   } catch (error) {
     console.error(error);
-    core.setFailed('Unknown error' + error);
+    core.setFailed(`Unknown error: ${error}`);
     throw error;
   }
 }
