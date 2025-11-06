@@ -1017,7 +1017,9 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
         expect.objectContaining({
           comment_id: 444,
-          body: expect.stringContaining(':white_check_mark: All commits in this pull request are now linked to work items.')
+          body: expect.stringContaining(
+            ':white_check_mark: All commits in this pull request are now linked to work items.'
+          )
         })
       );
       expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
