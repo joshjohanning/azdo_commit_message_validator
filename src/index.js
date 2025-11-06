@@ -147,7 +147,7 @@ export async function run() {
       if (existingInvalidWorkItemComment) {
         console.log(`Found existing invalid work item comment: ${existingInvalidWorkItemComment.id}`);
         const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-        const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
+        const commentExtra = `\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
         const successCommentCombined =
           `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:white_check_mark: All work items referenced in this pull request now exist in Azure DevOps.` +
           commentExtra;
@@ -297,7 +297,7 @@ async function checkCommitsForWorkItems(
     if (existingFailureComment) {
       console.log(`Found existing commit failure comment: ${existingFailureComment.id}`);
       const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-      const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
+      const commentExtra = `\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
       const successCommentCombined =
         `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:white_check_mark: All commits in this pull request are now linked to work items.` +
         commentExtra;
@@ -438,7 +438,7 @@ async function checkPullRequestForWorkItems(
     if (existingFailureComment) {
       console.log(`Found existing failure comment: ${existingFailureComment.id}`);
       const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-      const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
+      const commentExtra = `\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
       const successCommentCombined = SUCCESS_COMMENT_TEXT + commentExtra;
 
       console.log('... attempting to update the PR comment to success');
@@ -510,7 +510,7 @@ async function checkPullRequestForWorkItems(
 async function addOrUpdateComment(octokit, context, pullNumber, commentBody, searchText) {
   const { owner, repo } = context.repo;
   const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-  const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
+  const commentExtra = `\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
   const commentCombined = commentBody + commentExtra;
 
   // Get all comments
