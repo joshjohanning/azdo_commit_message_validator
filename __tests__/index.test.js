@@ -1270,5 +1270,187 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockSetFailed).not.toHaveBeenCalled();
       expect(mockValidateWorkItemExists).not.toHaveBeenCalled();
     });
+
+    it('should show commit info in dropdown for multiple invalid work items', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'validate-work-item-exists') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123def456',
+            commit: {
+              message: 'feat: add feature AB#99999'
+            }
+          },
+          {
+            sha: 'def456ghi789',
+            commit: {
+              message: 'fix: bug fix AB#88888'
+            }
+          }
+        ]
+      });
+
+      // Mock both work items as invalid
+      mockValidateWorkItemExists.mockResolvedValue(false);
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+      expect(mockOctokit.rest.issues.createComment).toHaveBeenCalled();
+
+      // Verify the comment includes commit info in dropdown
+      const commentCall = mockOctokit.rest.issues.createComment.mock.calls[0][0];
+      expect(commentCall.body).toContain('View all 2 invalid work items');
+      expect(commentCall.body).toContain('`AB#99999` (commit [`abc123d`]');
+      expect(commentCall.body).toContain('`AB#88888` (commit [`def456g`]');
+    });
+
+    it('should show "in PR title/body" for work items from PR validation', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'validate-work-item-exists') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature AB#99999',
+          body: 'This PR implements AB#88888'
+        }
+      });
+
+      // Mock both work items as invalid
+      mockValidateWorkItemExists.mockResolvedValue(false);
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+      expect(mockOctokit.rest.issues.createComment).toHaveBeenCalled();
+
+      // Verify the comment includes "in PR title/body" for both work items
+      const commentCall = mockOctokit.rest.issues.createComment.mock.calls[0][0];
+      expect(commentCall.body).toContain('View all 2 invalid work items');
+      expect(commentCall.body).toContain('`AB#99999` (in PR title/body)');
+      expect(commentCall.body).toContain('`AB#88888` (in PR title/body)');
+    });
+
+    it('should show commit info when work item is found in both commit and PR validation', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'validate-work-item-exists') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      // Commit has 2 work items, both valid in commit check but invalid in existence check
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123def456',
+            commit: {
+              message: 'feat: add feature AB#99999 AB#88888'
+            }
+          }
+        ]
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'This PR implements AB#99999 and AB#88888'
+        }
+      });
+
+      // Mock both work items as invalid
+      mockValidateWorkItemExists.mockResolvedValue(false);
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+      expect(mockOctokit.rest.issues.createComment).toHaveBeenCalled();
+
+      // Commit validation runs first and finds 2 invalid work items
+      const commentCall = mockOctokit.rest.issues.createComment.mock.calls[0][0];
+
+      // Should show 2 work items in dropdown, both from commits since commit validation runs first
+      expect(commentCall.body).toContain('There are 2 work items');
+      expect(commentCall.body).toContain('View all 2 invalid work items');
+      // Both from commits
+      expect(commentCall.body).toContain('`AB#99999` (commit [`abc123d`]');
+      expect(commentCall.body).toContain('`AB#88888` (commit [`abc123d`]');
+    });
+
+    it('should update existing comment when invalid work items change (1 to 2)', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'validate-work-item-exists') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123def456',
+            commit: {
+              message: 'feat: add feature AB#99999 AB#88888'
+            }
+          }
+        ]
+      });
+
+      // Existing comment has 1 invalid work item
+      mockOctokit.rest.issues.listComments.mockResolvedValue({
+        data: [
+          {
+            id: 777,
+            body: ':x: There is 1 work item (`AB#99999`) in pull request #42 that does not exist in Azure DevOps.'
+          }
+        ]
+      });
+
+      // Mock both work items as invalid
+      mockValidateWorkItemExists.mockResolvedValue(false);
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          comment_id: 777,
+          body: expect.stringContaining('There are 2 work items')
+        })
+      );
+      // Should now have dropdown format with both work items
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('View all 2 invalid work items')
+        })
+      );
+      expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+    });
   });
 });
