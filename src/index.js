@@ -256,9 +256,9 @@ async function checkCommitsForWorkItems(
           .map(id => {
             const commitInfo = workItemToCommitMap.get(id);
             if (commitInfo) {
-              return `- AB#${id} (commit [\`${commitInfo.shortSha}\`](${context.payload.repository?.html_url}/commit/${commitInfo.sha}))`;
+              return `- \`AB#${id}\` (commit [\`${commitInfo.shortSha}\`](${context.payload.repository?.html_url}/commit/${commitInfo.sha}))`;
             }
-            return `- AB#${id} (in PR title/body)`;
+            return `- \`AB#${id}\` (in PR title/body)`;
           })
           .join('\n');
 
@@ -268,7 +268,7 @@ async function checkCommitsForWorkItems(
             : '';
 
         // For single work item, include it inline; for multiple, use dropdown only
-        const workItemReference = invalidWorkItems.length === 1 ? ` (AB#${invalidWorkItems[0]})` : '';
+        const workItemReference = invalidWorkItems.length === 1 ? ` (\`AB#${invalidWorkItems[0]}\`)` : '';
 
         await addOrUpdateComment(
           octokit,
@@ -462,9 +462,9 @@ async function checkPullRequestForWorkItems(
               .map(id => {
                 const commitInfo = workItemToCommitMap.get(id);
                 if (commitInfo) {
-                  return `- AB#${id} (commit [\`${commitInfo.shortSha}\`](${context.payload.repository?.html_url}/commit/${commitInfo.sha}))`;
+                  return `- \`AB#${id}\` (commit [\`${commitInfo.shortSha}\`](${context.payload.repository?.html_url}/commit/${commitInfo.sha}))`;
                 }
-                return `- AB#${id} (in PR title/body)`;
+                return `- \`AB#${id}\` (in PR title/body)`;
               })
               .join('\n');
 
@@ -474,7 +474,7 @@ async function checkPullRequestForWorkItems(
                 : '';
 
             // For single work item, include it inline; for multiple, use dropdown only
-            const workItemReference = invalidWorkItems.length === 1 ? ` (AB#${invalidWorkItems[0]})` : '';
+            const workItemReference = invalidWorkItems.length === 1 ? ` (\`AB#${invalidWorkItems[0]}\`)` : '';
 
             await addOrUpdateComment(
               octokit,
