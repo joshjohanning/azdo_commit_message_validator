@@ -53,16 +53,17 @@ jobs:
 
 ### Inputs
 
-| Name                                   | Description                                                                                                                    | Required | Default               |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------- | --------------------- |
-| `check-pull-request`                   | Check the pull request body and title for `AB#xxx`                                                                             | `true`   | `true`                |
-| `check-commits`                        | Check each commit in the pull request for `AB#xxx`                                                                             | `true`   | `true`                |
-| `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message           | `false`  | `true`                |
-| `link-commits-to-pull-request`         | Only if `check-commits=true`, link the work items found in commits to the pull request                                         | `false`  | `true`                |
-| `azure-devops-organization`            | Only if `check-commits=true`, link the work items found in commits to the pull request                                         | `false`  | `''`                  |
-| `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT) | `false`  | `''`                  |
-| `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                          | `true`   | `${{ github.token }}` |
-| `comment-on-failure`                   | Comment on the pull request if the action fails                                                                                | `true`   | `true`                |
+| Name                                   | Description                                                                                                                                       | Required | Default               |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
+| `check-pull-request`                   | Check the pull request body and title for `AB#xxx`                                                                                                | `true`   | `true`                |
+| `check-commits`                        | Check each commit in the pull request for `AB#xxx`                                                                                                | `true`   | `true`                |
+| `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message                              | `false`  | `true`                |
+| `link-commits-to-pull-request`         | Only if `check-commits=true`, link the work items found in commits to the pull request                                                            | `false`  | `true`                |
+| `validate-work-item-exists`            | Validate that the work item(s) referenced in commits and PR exist in Azure DevOps (requires `azure-devops-token` and `azure-devops-organization`) | `false`  | `true`                |
+| `azure-devops-organization`            | Only if `check-commits=true`, link the work items found in commits to the pull request                                                            | `false`  | `''`                  |
+| `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT)                    | `false`  | `''`                  |
+| `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                                             | `true`   | `${{ github.token }}` |
+| `comment-on-failure`                   | Comment on the pull request if the action fails                                                                                                   | `true`   | `true`                |
 
 ## Screenshots
 

@@ -12,6 +12,7 @@ const mockCore = {
 
 // Mock azure-devops-node-api
 const mockUpdateWorkItem = jest.fn();
+const mockGetWorkItem = jest.fn();
 const mockGetWorkItemTrackingApi = jest.fn();
 const mockWebApi = jest.fn();
 const mockGetPersonalAccessTokenHandler = jest.fn();
@@ -36,13 +37,15 @@ describe('Azure DevOps Work Item Linker', () => {
     jest.clearAllMocks();
     mockSetFailed.mockClear();
     mockUpdateWorkItem.mockClear();
+    mockGetWorkItem.mockClear();
     mockGetWorkItemTrackingApi.mockClear();
     mockWebApi.mockClear();
     mockGetPersonalAccessTokenHandler.mockClear();
 
     // Set up Azure DevOps API mocks
     mockGetWorkItemTrackingApi.mockResolvedValue({
-      updateWorkItem: mockUpdateWorkItem
+      updateWorkItem: mockUpdateWorkItem,
+      getWorkItem: mockGetWorkItem
     });
 
     mockWebApi.mockImplementation(() => ({
@@ -228,6 +231,48 @@ describe('Azure DevOps Work Item Linker', () => {
       await run();
 
       expect(mockSetFailed).toHaveBeenCalledWith('Failed retrieve internalRepoId!');
+    });
+  });
+
+  describe('validateWorkItemExists', () => {
+    it('should return true when work item exists', async () => {
+      // Mock getWorkItem to return a valid work item
+      mockGetWorkItem.mockResolvedValue({
+        id: 12345,
+        fields: {
+          'System.Title': 'Test work item'
+        }
+      });
+
+      const { validateWorkItemExists } = await import('../src/link-work-item.js');
+      const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
+
+      expect(result).toBe(true);
+      expect(mockGetWorkItem).toHaveBeenCalledWith(12345);
+    });
+
+    it('should return false when work item does not exist (404)', async () => {
+      // Mock getWorkItem to throw a 404 error
+      const error = new Error('Work item not found');
+      error.statusCode = 404;
+      mockGetWorkItem.mockRejectedValue(error);
+
+      const { validateWorkItemExists } = await import('../src/link-work-item.js');
+      const result = await validateWorkItemExists('test-org', 'azdo-token', '99999');
+
+      expect(result).toBe(false);
+      expect(mockGetWorkItem).toHaveBeenCalledWith(99999);
+    });
+
+    it('should return false when work item API call fails', async () => {
+      // Mock getWorkItem to throw a network error
+      mockGetWorkItem.mockRejectedValue(new Error('Network error'));
+
+      const { validateWorkItemExists } = await import('../src/link-work-item.js');
+      const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
+
+      expect(result).toBe(false);
+      expect(mockGetWorkItem).toHaveBeenCalledWith(12345);
     });
   });
 });

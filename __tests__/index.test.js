@@ -39,8 +39,10 @@ jest.unstable_mockModule('@actions/github', () => ({
 
 // Mock ./link-work-item.js
 const mockLinkWorkItem = jest.fn();
+const mockValidateWorkItemExists = jest.fn();
 jest.unstable_mockModule('../src/link-work-item.js', () => ({
-  run: mockLinkWorkItem
+  run: mockLinkWorkItem,
+  validateWorkItemExists: mockValidateWorkItemExists
 }));
 
 describe('Azure DevOps Commit Validator', () => {
@@ -70,7 +72,8 @@ describe('Azure DevOps Commit Validator', () => {
         'azure-devops-token': '',
         'azure-devops-organization': '',
         'github-token': 'github-token',
-        'comment-on-failure': 'true'
+        'comment-on-failure': 'true',
+        'validate-work-item-exists': 'false'
       };
       return defaults[name] || '';
     });
@@ -105,6 +108,9 @@ describe('Azure DevOps Commit Validator', () => {
 
     mockGetOctokit.mockReturnValue(mockOctokit);
     mockContext.payload.pull_request = { number: 42 };
+
+    // Default mock for validateWorkItemExists (returns true by default)
+    mockValidateWorkItemExists.mockResolvedValue(true);
   });
 
   describe('Input validation', () => {
@@ -1118,6 +1124,151 @@ describe('Azure DevOps Commit Validator', () => {
 
       // Should still call linkWorkItem even with empty credentials
       expect(mockLinkWorkItem).toHaveBeenCalled();
+    });
+  });
+
+  describe('Work item validation', () => {
+    it('should fail when work item does not exist in Azure DevOps', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'validate-work-item-exists') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature AB#99999'
+            }
+          }
+        ]
+      });
+
+      // Mock work item validation to return false (work item doesn't exist)
+      mockValidateWorkItemExists.mockResolvedValue(false);
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+      expect(mockOctokit.rest.issues.createComment).toHaveBeenCalled();
+      expect(mockValidateWorkItemExists).toHaveBeenCalledWith('test-org', 'azdo-token', '99999');
+    });
+
+    it('should pass when work item exists in Azure DevOps', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'validate-work-item-exists') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature AB#12345'
+            }
+          }
+        ]
+      });
+
+      // Mock work item validation to return true (work item exists)
+      mockValidateWorkItemExists.mockResolvedValue(true);
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockValidateWorkItemExists).toHaveBeenCalledWith('test-org', 'azdo-token', '12345');
+    });
+
+    it('should update existing invalid work item comment to success when work items are fixed', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'validate-work-item-exists') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature AB#12345'
+            }
+          }
+        ]
+      });
+
+      // Existing invalid work item comment
+      mockOctokit.rest.issues.listComments.mockResolvedValue({
+        data: [
+          {
+            id: 555,
+            body: ':x: There is 1 work item (AB#99999) in pull request #42 that does not exist in Azure DevOps.'
+          }
+        ]
+      });
+
+      // Mock work item validation to return true (work item now exists)
+      mockValidateWorkItemExists.mockResolvedValue(true);
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      // Should update the existing comment to success
+      expect(mockOctokit.rest.issues.updateComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          comment_id: 555,
+          body: expect.stringContaining(
+            ':white_check_mark: All work items referenced in this pull request now exist in Azure DevOps.'
+          )
+        })
+      );
+      expect(mockOctokit.rest.issues.createComment).not.toHaveBeenCalled();
+    });
+
+    it('should skip validation when validate-work-item-exists is false', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'validate-work-item-exists') return 'false';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature AB#99999'
+            }
+          }
+        ]
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockValidateWorkItemExists).not.toHaveBeenCalled();
     });
   });
 });

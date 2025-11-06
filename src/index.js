@@ -10,7 +10,7 @@
 
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { run as linkWorkItem } from './link-work-item.js';
+import { run as linkWorkItem, validateWorkItemExists } from './link-work-item.js';
 
 /** Regex pattern to match Azure DevOps work item references (AB#123) */
 const AB_PATTERN = /AB#[0-9]+/gi;
@@ -30,6 +30,7 @@ export async function run() {
     const azureDevopsOrganization = core.getInput('azure-devops-organization');
     const githubToken = core.getInput('github-token');
     const commentOnFailure = core.getInput('comment-on-failure') === 'true';
+    const validateWorkItemExistsFlag = core.getInput('validate-work-item-exists') === 'true';
 
     // Get context
     const context = github.context;
@@ -51,6 +52,7 @@ export async function run() {
         failIfMissingWorkitemCommitLink,
         linkCommitsToPullRequest,
         commentOnFailure,
+        validateWorkItemExistsFlag,
         azureDevopsOrganization,
         azureDevopsToken,
         githubToken
@@ -59,7 +61,15 @@ export async function run() {
 
     // Check pull request
     if (checkPullRequest) {
-      await checkPullRequestForWorkItems(octokit, context, pullNumber, commentOnFailure);
+      await checkPullRequestForWorkItems(
+        octokit,
+        context,
+        pullNumber,
+        commentOnFailure,
+        validateWorkItemExistsFlag,
+        azureDevopsOrganization,
+        azureDevopsToken
+      );
     }
   } catch (error) {
     core.setFailed(`Action failed with error: ${error}`);
@@ -75,6 +85,7 @@ export async function run() {
  * @param {boolean} failIfMissingWorkitemCommitLink - Whether to fail if commit lacks work item
  * @param {boolean} linkCommitsToPullRequest - Whether to link work items to PR
  * @param {boolean} commentOnFailure - Whether to comment on PR if validation fails
+ * @param {boolean} validateWorkItemExistsFlag - Whether to validate work items exist in Azure DevOps
  * @param {string} azureDevopsOrganization - Azure DevOps organization name
  * @param {string} azureDevopsToken - Azure DevOps PAT token
  * @param {string} githubToken - GitHub token
@@ -86,6 +97,7 @@ async function checkCommitsForWorkItems(
   failIfMissingWorkitemCommitLink,
   linkCommitsToPullRequest,
   commentOnFailure,
+  validateWorkItemExistsFlag,
   azureDevopsOrganization,
   azureDevopsToken,
   githubToken
@@ -202,6 +214,83 @@ async function checkCommitsForWorkItems(
     }
   }
 
+  // Validate work items exist if enabled
+  if (validateWorkItemExistsFlag && azureDevopsOrganization && azureDevopsToken && allWorkItems.length > 0) {
+    const uniqueWorkItems = [...new Set(allWorkItems)];
+    const invalidWorkItems = [];
+
+    for (const match of uniqueWorkItems) {
+      const workItemId = match.substring(3); // Remove "AB#" prefix
+      const exists = await validateWorkItemExists(azureDevopsOrganization, azureDevopsToken, workItemId);
+
+      if (!exists) {
+        invalidWorkItems.push(workItemId);
+      }
+    }
+
+    // Handle invalid work items if any were found
+    if (invalidWorkItems.length > 0) {
+      const errorMessage = `Pull request contains ${invalidWorkItems.length === 1 ? 'an' : ''} invalid work item${invalidWorkItems.length === 1 ? '' : 's'}: ${invalidWorkItems.join(', ')}. ${invalidWorkItems.length === 1 ? 'This work item does' : 'These work items do'} not exist in Azure DevOps -- failing operation.`;
+      console.log('');
+      console.log('');
+      console.log(errorMessage);
+      core.error(
+        `Invalid work item(s): There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps`
+      );
+
+      // Add comment to PR if comment-on-failure is true
+      if (commentOnFailure) {
+        const workItemList =
+          invalidWorkItems.length > 1
+            ? `\n\n<details>\n<summary>View all ${invalidWorkItems.length} invalid work items</summary>\n\n${invalidWorkItems.map(id => `- AB#${id}`).join('\n')}\n</details>`
+            : '';
+
+        await addOrUpdateComment(
+          octokit,
+          context,
+          pullNumber,
+          `:x: There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'} (${invalidWorkItems.map(id => `AB#${id}`).join(', ')}) in pull request #${pullNumber} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps. Please verify the work item${invalidWorkItems.length === 1 ? '' : 's'} and update the commit message${invalidWorkItems.length === 1 ? '' : 's'} or PR title/body.${workItemList}`,
+          `work item${invalidWorkItems.length === 1 ? '' : 's'} (${invalidWorkItems.map(id => `AB#${id}`).join(', ')}) in pull request #${pullNumber} that`
+        );
+      }
+
+      core.setFailed(
+        `There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps`
+      );
+      return;
+    }
+
+    // All work items are valid - check if there's an existing invalid work item comment to update
+    if (commentOnFailure) {
+      const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+        owner,
+        repo,
+        issue_number: pullNumber
+      });
+
+      const existingInvalidWorkItemComment = comments.find(comment =>
+        comment.body?.includes(`in pull request #${pullNumber} that`)
+      );
+
+      if (existingInvalidWorkItemComment) {
+        console.log(`Found existing invalid work item comment: ${existingInvalidWorkItemComment.id}`);
+        const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
+        const successCommentCombined =
+          ':white_check_mark: All work items referenced in this pull request now exist in Azure DevOps.' + commentExtra;
+
+        console.log('... attempting to update the invalid work item comment to success');
+        await octokit.rest.issues.updateComment({
+          owner,
+          repo,
+          comment_id: existingInvalidWorkItemComment.id,
+          body: successCommentCombined
+        });
+        console.log('... invalid work item comment updated to success');
+      }
+    }
+  }
+
   // Link work items to PR if enabled (after deduplication)
   if (linkCommitsToPullRequest && allWorkItems.length > 0) {
     // Remove duplicates
@@ -232,8 +321,19 @@ async function checkCommitsForWorkItems(
  * @param {Object} context - GitHub Actions context
  * @param {number} pullNumber - Pull request number
  * @param {boolean} commentOnFailure - Whether to comment on PR if validation fails
+ * @param {boolean} validateWorkItemExistsFlag - Whether to validate work items exist in Azure DevOps
+ * @param {string} azureDevopsOrganization - Azure DevOps organization name
+ * @param {string} azureDevopsToken - Azure DevOps PAT token
  */
-async function checkPullRequestForWorkItems(octokit, context, pullNumber, commentOnFailure) {
+async function checkPullRequestForWorkItems(
+  octokit,
+  context,
+  pullNumber,
+  commentOnFailure,
+  validateWorkItemExistsFlag,
+  azureDevopsOrganization,
+  azureDevopsToken
+) {
   const { owner, repo } = context.repo;
 
   // Get pull request details
@@ -296,15 +396,63 @@ async function checkPullRequestForWorkItems(octokit, context, pullNumber, commen
       console.log('... PR comment updated to success');
     }
 
-    // Extract work items from PR body and title
+    // Extract work items from PR body and title and validate they exist
     const workItems = (pullBody + ' ' + pullTitle).match(AB_PATTERN);
     if (workItems) {
       const uniqueWorkItems = [...new Set(workItems)];
 
-      // Loop through each work item
-      for (const workItem of uniqueWorkItems) {
-        const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
-        console.log(`PR title/body contains work item: ${workItemNumber}`);
+      // Validate work items exist if enabled
+      if (validateWorkItemExistsFlag && azureDevopsOrganization && azureDevopsToken) {
+        const invalidWorkItems = [];
+
+        for (const workItem of uniqueWorkItems) {
+          const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
+          console.log(`PR title/body contains work item: ${workItemNumber}`);
+
+          const exists = await validateWorkItemExists(azureDevopsOrganization, azureDevopsToken, workItemNumber);
+
+          if (!exists) {
+            invalidWorkItems.push(workItemNumber);
+          }
+        }
+
+        // Handle invalid work items if any were found
+        if (invalidWorkItems.length > 0) {
+          const errorMessage = `Pull request contains ${invalidWorkItems.length === 1 ? 'an' : ''} invalid work item${invalidWorkItems.length === 1 ? '' : 's'}: ${invalidWorkItems.join(', ')}. ${invalidWorkItems.length === 1 ? 'This work item does' : 'These work items do'} not exist in Azure DevOps -- failing operation.`;
+          console.log('');
+          console.log('');
+          console.log(errorMessage);
+          core.error(
+            `Invalid work item(s) in PR: There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'} in the PR that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps`
+          );
+
+          // Add comment to PR if comment-on-failure is true
+          if (commentOnFailure) {
+            const workItemList =
+              invalidWorkItems.length > 1
+                ? `\n\n<details>\n<summary>View all ${invalidWorkItems.length} invalid work items</summary>\n\n${invalidWorkItems.map(id => `- AB#${id}`).join('\n')}\n</details>`
+                : '';
+
+            await addOrUpdateComment(
+              octokit,
+              context,
+              pullNumber,
+              `:x: There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'} (${invalidWorkItems.map(id => `AB#${id}`).join(', ')}) in pull request #${pullNumber} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps. Please verify the work item${invalidWorkItems.length === 1 ? '' : 's'} in the PR title/body.${workItemList}`,
+              `work item${invalidWorkItems.length === 1 ? '' : 's'} (${invalidWorkItems.map(id => `AB#${id}`).join(', ')}) in pull request #${pullNumber} that`
+            );
+          }
+
+          core.setFailed(
+            `There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'} in the PR that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps`
+          );
+          return;
+        }
+      } else {
+        // Just log work items if validation is disabled
+        for (const workItem of uniqueWorkItems) {
+          const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
+          console.log(`PR title/body contains work item: ${workItemNumber}`);
+        }
       }
     }
   }

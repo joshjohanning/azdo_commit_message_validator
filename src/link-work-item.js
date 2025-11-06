@@ -136,3 +136,35 @@ export async function run() {
     throw error;
   }
 }
+
+/**
+ * Validate that a work item exists in Azure DevOps
+ *
+ * @param {string} devOpsOrg - Azure DevOps organization name
+ * @param {string} azToken - Azure DevOps PAT token
+ * @param {string} workItemId - Work item ID to validate
+ * @returns {Promise<boolean>} - True if work item exists, false otherwise
+ */
+export async function validateWorkItemExists(devOpsOrg, azToken, workItemId) {
+  try {
+    console.log(`Validating work item ${workItemId} exists...`);
+    const orgUrl = `https://dev.azure.com/${devOpsOrg}`;
+    const authHandler = azdev.getPersonalAccessTokenHandler(azToken);
+    const azWebApi = new azdev.WebApi(orgUrl, authHandler);
+    const azWorkApi = await azWebApi.getWorkItemTrackingApi();
+
+    const workItem = await azWorkApi.getWorkItem(parseInt(workItemId));
+
+    if (workItem && workItem.id) {
+      console.log(`... work item ${workItemId} exists`);
+      return true;
+    }
+
+    console.log(`... work item ${workItemId} not found`);
+    return false;
+  } catch (error) {
+    // 404 or other errors mean work item doesn't exist
+    console.log(`... work item ${workItemId} not found: ${error.message}`);
+    return false;
+  }
+}

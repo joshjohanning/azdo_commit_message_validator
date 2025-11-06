@@ -36,6 +36,10 @@ inputs:
     description: 'Comment on the pull request if the action fails'
     required: true
     default: 'true'
+  validate-work-item-exists:
+    description: 'Validate that the work item(s) referenced in commits and PR exist in Azure DevOps. Requires azure-devops-token and azure-devops-organization to be set.'
+    required: false
+    default: 'true'
 
 runs:
   using: 'node20'
