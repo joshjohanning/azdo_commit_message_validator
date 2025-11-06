@@ -48,14 +48,16 @@ jest.unstable_mockModule('../src/link-work-item.js', () => ({
 describe('Azure DevOps Commit Validator', () => {
   let mockOctokit;
   let run;
+  let COMMENT_MARKERS;
 
   beforeAll(async () => {
     // Set NODE_ENV to test to prevent auto-execution
     process.env.NODE_ENV = 'test';
 
-    // Import the run function
+    // Import the run function and COMMENT_MARKERS after mocks are set up
     const indexModule = await import('../src/index.js');
     run = indexModule.run;
+    COMMENT_MARKERS = indexModule.COMMENT_MARKERS;
   });
 
   beforeEach(() => {
@@ -725,7 +727,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: [
           {
             id: 888,
-            body: ':x: There is 1 commit (`abc1234`) in pull request #42 not linked to a work item. Please amend the commit message to include a work item reference (`AB#xxx`) and re-run the failed job to continue.'
+            body: `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:x: There is 1 commit (\`abc1234\`) in pull request #42 not linked to a work item. Please amend the commit message to include a work item reference (\`AB#xxx\`) and re-run the failed job to continue.`
           }
         ]
       });
@@ -768,7 +770,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: [
           {
             id: 999,
-            body: ':x: There are 4 commits in pull request #42 not linked to work items. Please amend the commit messages to include a work item reference (`AB#xxx`) and re-run the failed job to continue.\n\n<details>\n<summary>View all 4 commits missing work items</summary>\n\n- `abc1234` - commit 1\n- `def5678` - commit 2\n- `ghi9012` - commit 3\n- `jkl3456` - commit 4\n</details>'
+            body: `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:x: There are 4 commits in pull request #42 not linked to work items. Please amend the commit messages to include a work item reference (\`AB#xxx\`) and re-run the failed job to continue.\n\n<details>\n<summary>View all 4 commits missing work items</summary>\n\n- \`abc1234\` - commit 1\n- \`def5678\` - commit 2\n- \`ghi9012\` - commit 3\n- \`jkl3456\` - commit 4\n</details>`
           }
         ]
       });
@@ -834,7 +836,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: [
           {
             id: 777,
-            body: ':x: There is 1 commit (`abc1234`) in pull request #42 not linked to a work item. Please amend the commit message to include a work item reference (`AB#xxx`) and re-run the failed job to continue.'
+            body: `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:x: There is 1 commit (\`abc1234\`) in pull request #42 not linked to a work item. Please amend the commit message to include a work item reference (\`AB#xxx\`) and re-run the failed job to continue.`
           }
         ]
       });
@@ -906,7 +908,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: [
           {
             id: 666,
-            body: ':x: There are 4 commits in pull request #42 not linked to work items. Please amend the commit messages to include a work item reference (`AB#xxx`) and re-run the failed job to continue.\n\n<details>\n<summary>View all 4 commits missing work items</summary>\n\n- `old1abc` - old commit 1\n- `old2def` - old commit 2\n- `old3ghi` - old commit 3\n- `old4jkl` - old commit 4\n</details>'
+            body: `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:x: There are 4 commits in pull request #42 not linked to work items. Please amend the commit messages to include a work item reference (\`AB#xxx\`) and re-run the failed job to continue.\n\n<details>\n<summary>View all 4 commits missing work items</summary>\n\n- \`old1abc\` - old commit 1\n- \`old2def\` - old commit 2\n- \`old3ghi\` - old commit 3\n- \`old4jkl\` - old commit 4\n</details>`
           }
         ]
       });
@@ -950,12 +952,12 @@ describe('Azure DevOps Commit Validator', () => {
         ]
       });
 
-      // Old comment format (missing some newer text elements)
+      // Old comment with HTML marker but older text format
       mockOctokit.rest.issues.listComments.mockResolvedValue({
         data: [
           {
             id: 555,
-            body: ':x: There is at least one commit in pull request #42 not linked to a work item. The commit should be amended.'
+            body: `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:x: There is at least one commit in pull request #42 not linked to a work item. The commit should be amended.`
           }
         ]
       });
@@ -1006,12 +1008,12 @@ describe('Azure DevOps Commit Validator', () => {
         ]
       });
 
-      // Existing failure comment exists
+      // Existing failure comment exists with HTML marker
       mockOctokit.rest.issues.listComments.mockResolvedValue({
         data: [
           {
             id: 444,
-            body: ':x: There are 2 commits in pull request #42 not linked to work items. Please amend the commit messages to include a work item reference (`AB#xxx`) and re-run the failed job to continue.'
+            body: `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:x: There are 2 commits in pull request #42 not linked to work items. Please amend the commit messages to include a work item reference (\`AB#xxx\`) and re-run the failed job to continue.`
           }
         ]
       });
@@ -1221,7 +1223,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: [
           {
             id: 555,
-            body: ':x: There is 1 work item (AB#99999) in pull request #42 that does not exist in Azure DevOps.'
+            body: `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:x: There is 1 work item (AB#99999) in pull request #42 that does not exist in Azure DevOps.`
           }
         ]
       });
@@ -1427,7 +1429,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: [
           {
             id: 777,
-            body: ':x: There is 1 work item (`AB#99999`) in pull request #42 that does not exist in Azure DevOps.'
+            body: `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:x: There is 1 work item (\`AB#99999\`) in pull request #42 that does not exist in Azure DevOps.`
           }
         ]
       });
