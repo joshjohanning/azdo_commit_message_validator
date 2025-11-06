@@ -15,6 +15,13 @@ import { run as linkWorkItem, validateWorkItemExists } from './link-work-item.js
 /** Regex pattern to match Azure DevOps work item references (AB#123) */
 const AB_PATTERN = /AB#[0-9]+/gi;
 
+/** HTML comment markers for identifying different validation scenarios */
+export const COMMENT_MARKERS = {
+  COMMITS_NOT_LINKED: '<!-- AZDO-VALIDATOR: COMMITS-NOT-LINKED -->',
+  INVALID_WORK_ITEMS: '<!-- AZDO-VALIDATOR: INVALID-WORK-ITEMS -->',
+  PR_NOT_LINKED: '<!-- AZDO-VALIDATOR: PR-NOT-LINKED -->'
+};
+
 /**
  * Main action entry point
  * Validates commits and pull requests for Azure DevOps work item links
@@ -185,8 +192,8 @@ async function checkCommitsForWorkItems(
         octokit,
         context,
         pullNumber,
-        `:x: There ${invalidCommits.length === 1 ? 'is' : 'are'} ${invalidCommits.length} commit${invalidCommits.length === 1 ? '' : 's'}${commitReference} in pull request #${pullNumber} not linked to ${invalidCommits.length === 1 ? 'a work item' : 'work items'}. Please amend the commit message${invalidCommits.length === 1 ? '' : 's'} to include a work item reference (\`AB#xxx\`) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.${commitDetails}`,
-        `in pull request #${pullNumber} not linked to`
+        `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:x: There ${invalidCommits.length === 1 ? 'is' : 'are'} ${invalidCommits.length} commit${invalidCommits.length === 1 ? '' : 's'}${commitReference} in pull request #${pullNumber} not linked to ${invalidCommits.length === 1 ? 'a work item' : 'work items'}. Please amend the commit message${invalidCommits.length === 1 ? '' : 's'} to include a work item reference (\`AB#xxx\`) and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.${commitDetails}`,
+        COMMENT_MARKERS.COMMITS_NOT_LINKED
       );
     }
 
@@ -205,7 +212,7 @@ async function checkCommitsForWorkItems(
     });
 
     const existingFailureComment = comments.find(comment =>
-      comment.body?.includes(`in pull request #${pullNumber} not linked to`)
+      comment.body?.includes(COMMENT_MARKERS.COMMITS_NOT_LINKED)
     );
 
     if (existingFailureComment) {
@@ -213,7 +220,7 @@ async function checkCommitsForWorkItems(
       const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
       const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
       const successCommentCombined =
-        ':white_check_mark: All commits in this pull request are now linked to work items.' + commentExtra;
+        `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:white_check_mark: All commits in this pull request are now linked to work items.` + commentExtra;
 
       console.log('... attempting to update the commit failure comment to success');
       await octokit.rest.issues.updateComment({
@@ -274,8 +281,8 @@ async function checkCommitsForWorkItems(
           octokit,
           context,
           pullNumber,
-          `:x: There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'}${workItemReference} in pull request #${pullNumber} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps. Please verify the work item${invalidWorkItems.length === 1 ? '' : 's'} and update the commit message${invalidWorkItems.length === 1 ? '' : 's'} or PR title/body.${workItemList}`,
-          `in pull request #${pullNumber} that`
+          `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:x: There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'}${workItemReference} in pull request #${pullNumber} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps. Please verify the work item${invalidWorkItems.length === 1 ? '' : 's'} and update the commit message${invalidWorkItems.length === 1 ? '' : 's'} or PR title/body.${workItemList}`,
+          COMMENT_MARKERS.INVALID_WORK_ITEMS
         );
       }
 
@@ -294,7 +301,7 @@ async function checkCommitsForWorkItems(
       });
 
       const existingInvalidWorkItemComment = comments.find(comment =>
-        comment.body?.includes(`in pull request #${pullNumber} that`)
+        comment.body?.includes(COMMENT_MARKERS.INVALID_WORK_ITEMS)
       );
 
       if (existingInvalidWorkItemComment) {
@@ -302,7 +309,7 @@ async function checkCommitsForWorkItems(
         const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
         const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
         const successCommentCombined =
-          ':white_check_mark: All work items referenced in this pull request now exist in Azure DevOps.' + commentExtra;
+          `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:white_check_mark: All work items referenced in this pull request now exist in Azure DevOps.` + commentExtra;
 
         console.log('... attempting to update the invalid work item comment to success');
         await octokit.rest.issues.updateComment({
@@ -439,6 +446,11 @@ async function checkPullRequestForWorkItems(
           const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
           console.log(`PR title/body contains work item: ${workItemNumber}`);
 
+          // Add to the workItemToCommitMap to track that this came from PR title/body
+          if (!workItemToCommitMap.has(workItemNumber)) {
+            workItemToCommitMap.set(workItemNumber, null); // null indicates it's from PR title/body
+          }
+
           const exists = await validateWorkItemExists(azureDevopsOrganization, azureDevopsToken, workItemNumber);
 
           if (!exists) {
@@ -480,8 +492,8 @@ async function checkPullRequestForWorkItems(
               octokit,
               context,
               pullNumber,
-              `:x: There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'}${workItemReference} in pull request #${pullNumber} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps. Please verify the work item${invalidWorkItems.length === 1 ? '' : 's'} in the PR title/body.${workItemList}`,
-              `in pull request #${pullNumber} that`
+              `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:x: There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'}${workItemReference} in pull request #${pullNumber} that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps. Please verify the work item${invalidWorkItems.length === 1 ? '' : 's'} and update the commit message${invalidWorkItems.length === 1 ? '' : 's'} or PR title/body.${workItemList}`,
+              COMMENT_MARKERS.INVALID_WORK_ITEMS
             );
           }
 
@@ -489,6 +501,36 @@ async function checkPullRequestForWorkItems(
             `There ${invalidWorkItems.length === 1 ? 'is' : 'are'} ${invalidWorkItems.length} work item${invalidWorkItems.length === 1 ? '' : 's'} in the PR that ${invalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps`
           );
           return;
+        }
+
+        // All work items are valid - check if there's an existing invalid work item comment to update
+        if (commentOnFailure) {
+          const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+            owner,
+            repo,
+            issue_number: pullNumber
+          });
+
+          const existingInvalidWorkItemComment = comments.find(comment =>
+            comment.body?.includes(COMMENT_MARKERS.INVALID_WORK_ITEMS)
+          );
+
+          if (existingInvalidWorkItemComment) {
+            console.log(`Found existing invalid work item comment from PR validation: ${existingInvalidWorkItemComment.id}`);
+            const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+            const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
+            const successCommentCombined =
+              `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:white_check_mark: All work items referenced in this pull request now exist in Azure DevOps.` + commentExtra;
+
+            console.log('... attempting to update the invalid work item comment to success');
+            await octokit.rest.issues.updateComment({
+              owner,
+              repo,
+              comment_id: existingInvalidWorkItemComment.id,
+              body: successCommentCombined
+            });
+            console.log('... invalid work item comment updated to success');
+          }
         }
       } else {
         // Just log work items if validation is disabled
