@@ -211,16 +211,15 @@ async function checkCommitsForWorkItems(
       issue_number: pullNumber
     });
 
-    const existingFailureComment = comments.find(comment =>
-      comment.body?.includes(COMMENT_MARKERS.COMMITS_NOT_LINKED)
-    );
+    const existingFailureComment = comments.find(comment => comment.body?.includes(COMMENT_MARKERS.COMMITS_NOT_LINKED));
 
     if (existingFailureComment) {
       console.log(`Found existing commit failure comment: ${existingFailureComment.id}`);
       const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
       const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
       const successCommentCombined =
-        `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:white_check_mark: All commits in this pull request are now linked to work items.` + commentExtra;
+        `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:white_check_mark: All commits in this pull request are now linked to work items.` +
+        commentExtra;
 
       console.log('... attempting to update the commit failure comment to success');
       await octokit.rest.issues.updateComment({
@@ -309,7 +308,8 @@ async function checkCommitsForWorkItems(
         const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
         const commentExtra = `\n\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_</details>`;
         const successCommentCombined =
-          `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:white_check_mark: All work items referenced in this pull request now exist in Azure DevOps.` + commentExtra;
+          `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:white_check_mark: All work items referenced in this pull request now exist in Azure DevOps.` +
+          commentExtra;
 
         console.log('... attempting to update the invalid work item comment to success');
         await octokit.rest.issues.updateComment({
