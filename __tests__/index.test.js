@@ -1511,4 +1511,53 @@ describe('Azure DevOps Commit Validator', () => {
       expect(commentCall.body).toContain('`AB#55555555` (in PR title/body)');
     });
   });
+
+  describe('GitHub token permissions', () => {
+    it('should provide helpful error message when GITHUB_TOKEN lacks pull-requests write permission', async () => {
+      // Mock PR data
+      mockContext.payload.pull_request = {
+        number: 123
+      };
+
+      // Mock commits without AB# pattern
+      mockOctokit.paginate.mockResolvedValueOnce([
+        {
+          sha: 'abc1234567890',
+          commit: { message: 'Fix bug without work item' }
+        }
+      ]);
+
+      // Mock listComments to succeed
+      mockOctokit.paginate.mockResolvedValueOnce([]);
+
+      // Mock createComment to fail with 403 permission error
+      const permissionError = new Error('Resource not accessible by integration');
+      permissionError.status = 403;
+      mockOctokit.rest.issues.createComment.mockRejectedValueOnce(permissionError);
+
+      // Mock inputs
+      mockGetInput.mockImplementation(input => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'true',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'true',
+          'validate-work-item-exists': 'false',
+          'github-token': 'fake-token',
+          'azure-devops-token': '',
+          'azure-devops-organization': ''
+        };
+        return inputs[input] || '';
+      });
+
+      await run();
+
+      // Should set a helpful error message about missing permissions
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('pull-requests: write'));
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        expect.stringContaining('GITHUB_TOKEN does not have sufficient permissions')
+      );
+    });
+  });
 });

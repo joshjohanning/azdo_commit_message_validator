@@ -509,34 +509,46 @@ async function addOrUpdateComment(octokit, context, pullNumber, commentBody, sea
   const commentExtra = `\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_\n</details>`;
   const commentCombined = commentBody + commentExtra;
 
-  // Get all comments
-  const comments = await octokit.paginate(octokit.rest.issues.listComments, {
-    owner,
-    repo,
-    issue_number: pullNumber
-  });
-
-  // Find existing comment
-  const existingComment = comments.find(comment => comment.body?.includes(searchText));
-
-  if (existingComment) {
-    console.log(`Comment already exists: ${existingComment.id}`);
-    console.log('... attempting to update the PR comment');
-    await octokit.rest.issues.updateComment({
+  try {
+    // Get all comments
+    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
       owner,
       repo,
-      comment_id: existingComment.id,
-      body: commentCombined
+      issue_number: pullNumber
     });
-    console.log('... PR comment updated');
-  } else {
-    console.log('Comment does not exist. Posting a new comment.');
-    await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: pullNumber,
-      body: commentCombined
-    });
+
+    // Find existing comment
+    const existingComment = comments.find(comment => comment.body?.includes(searchText));
+
+    if (existingComment) {
+      console.log(`Comment already exists: ${existingComment.id}`);
+      console.log('... attempting to update the PR comment');
+      await octokit.rest.issues.updateComment({
+        owner,
+        repo,
+        comment_id: existingComment.id,
+        body: commentCombined
+      });
+      console.log('... PR comment updated');
+    } else {
+      console.log('Comment does not exist. Posting a new comment.');
+      await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: pullNumber,
+        body: commentCombined
+      });
+    }
+  } catch (error) {
+    if (error.status === 403 && error.message.includes('Resource not accessible by integration')) {
+      core.setFailed(
+        'Unable to comment on pull request. The GITHUB_TOKEN does not have sufficient permissions. ' +
+          'Please add "pull-requests: write" permission to your workflow. ' +
+          'See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token'
+      );
+    } else {
+      throw error;
+    }
   }
 }
 
