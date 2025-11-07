@@ -14,6 +14,16 @@ This action validates that pull requests and commits contain Azure DevOps work i
 2. **Validates Commits** - Ensures each commit in a pull request has an Azure DevOps work item link (e.g. `AB#123`) in the commit message
 3. **Automatically Links PRs to Work Items** - When a work item is referenced in a commit message, the action adds a GitHub Pull Request link to that work item in Azure DevOps
    - 🎯 **This is the key differentiator**: By default, Azure DevOps only adds the Pull Request link to work items mentioned directly in the PR title or body, but this action also links work items found in commit messages!
+4. **Visibility & Tracking** - Work item linkages are displayed as GitHub Actions notices and added to the job summary for easy visibility
+
+## Action Output
+
+The action provides visibility into linked work items through:
+
+- **GitHub Actions Notices**: Work item links are displayed as notice annotations in the workflow run, making it easy to see which work items are linked
+  - Example: `Work item AB#12345 (from commit abc123d) linked to pull request #42`
+- **Job Summary**: A summary of all linked work items is added to the workflow run's job summary page, providing a quick reference of work items associated with the PR
+  - Includes clickable links to commits and work items
 
 ## Usage
 

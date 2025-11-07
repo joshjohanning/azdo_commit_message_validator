@@ -9,12 +9,19 @@ const mockGetInput = jest.fn();
 const mockSetFailed = jest.fn();
 const mockInfo = jest.fn();
 const mockError = jest.fn();
+const mockNotice = jest.fn();
+const mockSummary = {
+  addRaw: jest.fn().mockReturnThis(),
+  write: jest.fn().mockResolvedValue(undefined)
+};
 
 jest.unstable_mockModule('@actions/core', () => ({
   getInput: mockGetInput,
   setFailed: mockSetFailed,
   info: mockInfo,
-  error: mockError
+  error: mockError,
+  notice: mockNotice,
+  summary: mockSummary
 }));
 
 // Mock @actions/github
@@ -63,6 +70,10 @@ describe('Azure DevOps Commit Validator', () => {
   beforeEach(() => {
     // Clear all mocks
     jest.clearAllMocks();
+
+    // Reset summary mock
+    mockSummary.addRaw.mockClear().mockReturnThis();
+    mockSummary.write.mockClear().mockResolvedValue(undefined);
 
     // Setup default mock implementations
     mockGetInput.mockImplementation(name => {
