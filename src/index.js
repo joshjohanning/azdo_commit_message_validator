@@ -48,6 +48,18 @@ export async function run() {
       return;
     }
 
+    // Validate Azure DevOps configuration if linking is enabled
+    if (linkCommitsToPullRequest) {
+      if (!azureDevopsOrganization) {
+        core.setFailed('Azure DevOps organization is required when link-commits-to-pull-request is true');
+        return;
+      }
+      if (!azureDevopsToken) {
+        core.setFailed('Azure DevOps token is required when link-commits-to-pull-request is true');
+        return;
+      }
+    }
+
     const octokit = github.getOctokit(githubToken);
 
     // Store work item to commit mapping and validation results
