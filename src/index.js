@@ -141,21 +141,19 @@ export async function run() {
       );
 
       if (existingInvalidWorkItemComment) {
-        console.log(`Found existing invalid work item comment: ${existingInvalidWorkItemComment.id}`);
+        core.info(`Found existing invalid work item comment: ${existingInvalidWorkItemComment.id}`);
         const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
         const commentExtra = `\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_\n</details>`;
-        const successCommentCombined =
-          `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:white_check_mark: All work items referenced in this pull request now exist in Azure DevOps.` +
-          commentExtra;
+        const successCommentCombined = `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:white_check_mark: All work items referenced in this pull request now exist in Azure DevOps.${commentExtra}`;
 
-        console.log('... attempting to update the invalid work item comment to success');
+        core.info('... attempting to update the invalid work item comment to success');
         await octokit.rest.issues.updateComment({
           owner,
           repo,
           comment_id: existingInvalidWorkItemComment.id,
           body: successCommentCombined
         });
-        console.log('... invalid work item comment updated to success');
+        core.info('... invalid work item comment updated to success');
       }
     }
   } catch (error) {
@@ -209,13 +207,13 @@ async function checkCommitsForWorkItems(
     const shortCommitSha = commitSha.substring(0, 7);
     const commitMessage = commit.commit.message;
 
-    console.log(`Validating new commit: ${commitSha} - ${commitMessage}`);
+    core.info(`Validating new commit: ${commitSha} - ${commitMessage}`);
 
     if (!AB_PATTERN.test(commitMessage)) {
       // Collect invalid commits
       invalidCommits.push({ sha: commitSha, shortSha: shortCommitSha, message: commitMessage });
     } else {
-      console.log('valid commit');
+      core.info('valid commit');
       // Extract work item number(s)
       const workItemMatches = commitMessage.match(AB_PATTERN);
       if (workItemMatches) {
@@ -236,9 +234,9 @@ async function checkCommitsForWorkItems(
   if (invalidCommits.length > 0 && failIfMissingWorkitemCommitLink) {
     const firstInvalidCommit = invalidCommits[0];
     const errorMessage = `Pull request contains invalid commit: ${firstInvalidCommit.sha}. This commit lacks an \`AB#xxx\` in the message, in the expected format: \`AB#xxx\` -- failing operation.`;
-    console.log('');
-    console.log('');
-    console.log(errorMessage);
+    core.info('');
+    core.info('');
+    core.info(errorMessage);
     core.error(
       `Commit(s) not linked to work items: There ${invalidCommits.length === 1 ? 'is' : 'are'} ${invalidCommits.length} commit${invalidCommits.length === 1 ? '' : 's'} in pull request #${pullNumber} not linked to work items`
     );
@@ -291,21 +289,19 @@ async function checkCommitsForWorkItems(
     const existingFailureComment = comments.find(comment => comment.body?.includes(COMMENT_MARKERS.COMMITS_NOT_LINKED));
 
     if (existingFailureComment) {
-      console.log(`Found existing commit failure comment: ${existingFailureComment.id}`);
+      core.info(`Found existing commit failure comment: ${existingFailureComment.id}`);
       const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
       const commentExtra = `\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_\n</details>`;
-      const successCommentCombined =
-        `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:white_check_mark: All commits in this pull request are now linked to work items.` +
-        commentExtra;
+      const successCommentCombined = `${COMMENT_MARKERS.COMMITS_NOT_LINKED}\n:white_check_mark: All commits in this pull request are now linked to work items.${commentExtra}`;
 
-      console.log('... attempting to update the commit failure comment to success');
+      core.info('... attempting to update the commit failure comment to success');
       await octokit.rest.issues.updateComment({
         owner,
         repo,
         comment_id: existingFailureComment.id,
         body: successCommentCombined
       });
-      console.log('... commit failure comment updated to success');
+      core.info('... commit failure comment updated to success');
     }
   }
 
@@ -326,9 +322,9 @@ async function checkCommitsForWorkItems(
     // If invalid work items found, return them (don't comment/fail here - let caller handle it)
     if (invalidWorkItems.length > 0) {
       const errorMessage = `Pull request contains ${invalidWorkItems.length === 1 ? 'an' : ''} invalid work item${invalidWorkItems.length === 1 ? '' : 's'}: ${invalidWorkItems.join(', ')}. ${invalidWorkItems.length === 1 ? 'This work item does' : 'These work items do'} not exist in Azure DevOps -- failing operation.`;
-      console.log('');
-      console.log('');
-      console.log(errorMessage);
+      core.info('');
+      core.info('');
+      core.info(errorMessage);
       return { workItemToCommitMap, invalidWorkItems, hasCommitFailures: false };
     }
 
@@ -343,7 +339,7 @@ async function checkCommitsForWorkItems(
 
     for (const match of uniqueWorkItems) {
       const workItemId = match.substring(3); // Remove "AB#" prefix
-      console.log(`Linking work item ${workItemId} to pull request ${pullNumber}...`);
+      core.info(`Linking work item ${workItemId} to pull request ${pullNumber}...`);
 
       // Set environment variables for main.js
       process.env.REPO_TOKEN = githubToken;
@@ -401,8 +397,8 @@ async function checkPullRequestForWorkItems(
   const FAILURE_COMMENT_TEXT = ':x: This pull request is not linked to a work item.';
   const SUCCESS_COMMENT_TEXT = ':white_check_mark: This pull request is now linked to a work item.';
 
-  if (!AB_PATTERN.test(pullTitle + ' ' + pullBody)) {
-    console.log('PR not linked to a work item');
+  if (!AB_PATTERN.test(`${pullTitle} ${pullBody}`)) {
+    core.info('PR not linked to a work item');
     core.error(
       `Pull Request not linked to work item(s): The pull request #${pullNumber} is not linked to any work item(s)`
     );
@@ -420,7 +416,7 @@ async function checkPullRequestForWorkItems(
 
     core.setFailed(`The pull request #${pullNumber} is not linked to any work item(s)`);
   } else {
-    console.log('PR linked to work item');
+    core.info('PR linked to work item');
 
     // Update existing failure comment if it exists
     const comments = await octokit.paginate(octokit.rest.issues.listComments, {
@@ -432,23 +428,23 @@ async function checkPullRequestForWorkItems(
     const existingFailureComment = comments.find(comment => comment.body?.includes(FAILURE_COMMENT_TEXT));
 
     if (existingFailureComment) {
-      console.log(`Found existing failure comment: ${existingFailureComment.id}`);
+      core.info(`Found existing failure comment: ${existingFailureComment.id}`);
       const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
       const commentExtra = `\n<details>\n<summary>Workflow run details</summary>\n\n[View workflow run](${context.payload.repository?.html_url}/actions/runs/${context.runId}) - _Last ran: ${currentDateTime} UTC_\n</details>`;
       const successCommentCombined = SUCCESS_COMMENT_TEXT + commentExtra;
 
-      console.log('... attempting to update the PR comment to success');
+      core.info('... attempting to update the PR comment to success');
       await octokit.rest.issues.updateComment({
         owner,
         repo,
         comment_id: existingFailureComment.id,
         body: successCommentCombined
       });
-      console.log('... PR comment updated to success');
+      core.info('... PR comment updated to success');
     }
 
     // Extract work items from PR body and title and validate they exist
-    const workItems = (pullBody + ' ' + pullTitle).match(AB_PATTERN);
+    const workItems = `${pullBody} ${pullTitle}`.match(AB_PATTERN);
     if (workItems) {
       const uniqueWorkItems = [...new Set(workItems)];
 
@@ -458,7 +454,7 @@ async function checkPullRequestForWorkItems(
 
         for (const workItem of uniqueWorkItems) {
           const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
-          console.log(`PR title/body contains work item: ${workItemNumber}`);
+          core.info(`PR title/body contains work item: ${workItemNumber}`);
 
           // Add to the workItemToCommitMap to track that this came from PR title/body
           if (!workItemToCommitMap.has(workItemNumber)) {
@@ -475,9 +471,9 @@ async function checkPullRequestForWorkItems(
         // Return invalid work items if any were found (don't comment/fail here - let caller handle it)
         if (invalidWorkItems.length > 0) {
           const errorMessage = `Pull request contains ${invalidWorkItems.length === 1 ? 'an' : ''} invalid work item${invalidWorkItems.length === 1 ? '' : 's'}: ${invalidWorkItems.join(', ')}. ${invalidWorkItems.length === 1 ? 'This work item does' : 'These work items do'} not exist in Azure DevOps -- failing operation.`;
-          console.log('');
-          console.log('');
-          console.log(errorMessage);
+          core.info('');
+          core.info('');
+          core.info(errorMessage);
           return invalidWorkItems;
         }
 
@@ -521,17 +517,17 @@ async function addOrUpdateComment(octokit, context, pullNumber, commentBody, sea
     const existingComment = comments.find(comment => comment.body?.includes(searchText));
 
     if (existingComment) {
-      console.log(`Comment already exists: ${existingComment.id}`);
-      console.log('... attempting to update the PR comment');
+      core.info(`Comment already exists: ${existingComment.id}`);
+      core.info('... attempting to update the PR comment');
       await octokit.rest.issues.updateComment({
         owner,
         repo,
         comment_id: existingComment.id,
         body: commentCombined
       });
-      console.log('... PR comment updated');
+      core.info('... PR comment updated');
     } else {
-      console.log('Comment does not exist. Posting a new comment.');
+      core.info('Comment does not exist. Posting a new comment.');
       await octokit.rest.issues.createComment({
         owner,
         repo,
