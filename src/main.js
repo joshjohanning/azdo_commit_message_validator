@@ -130,7 +130,7 @@ export async function run() {
     }
   } catch (error) {
     core.error(error);
-    core.setFailed(`Unknown error${error}`);
+    core.setFailed(`Unknown error: ${error}`);
     throw error;
   }
 }
