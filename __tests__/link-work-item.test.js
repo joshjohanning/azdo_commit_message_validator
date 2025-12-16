@@ -6,8 +6,14 @@ import { jest } from '@jest/globals';
 
 // Mock @actions/core
 const mockSetFailed = jest.fn();
+const mockInfo = jest.fn();
+const mockError = jest.fn();
+const mockWarning = jest.fn();
 const mockCore = {
-  setFailed: mockSetFailed
+  setFailed: mockSetFailed,
+  info: mockInfo,
+  error: mockError,
+  warning: mockWarning
 };
 
 // Mock azure-devops-node-api
@@ -36,6 +42,9 @@ describe('Azure DevOps Work Item Linker', () => {
     // Clear all mocks
     jest.clearAllMocks();
     mockSetFailed.mockClear();
+    mockInfo.mockClear();
+    mockError.mockClear();
+    mockWarning.mockClear();
     mockUpdateWorkItem.mockClear();
     mockGetWorkItem.mockClear();
     mockGetWorkItemTrackingApi.mockClear();

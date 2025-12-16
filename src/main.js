@@ -18,7 +18,6 @@ const msGitHubLinkDataProviderLink = 'ms.vss-work-web.github-link-data-provider'
 const dataProviderUrlBase = `https://dev.azure.com/%DEVOPS_ORG%/_apis/Contribution/dataProviders/query?api-version=7.1-preview.1`;
 
 let hasError = false;
-let workItem = null;
 
 /**
  * Link a GitHub Pull Request to an Azure DevOps work item
@@ -26,7 +25,6 @@ let workItem = null;
  */
 export async function run() {
   try {
-    const repoToken = process.env.REPO_TOKEN;
     const devOpsOrg = process.env.AZURE_DEVOPS_ORG;
     const azToken = process.env.AZURE_DEVOPS_PAT;
     const workItemId = process.env.WORKITEMID;
@@ -35,28 +33,28 @@ export async function run() {
     const dataProviderUrl = dataProviderUrlBase.replace('%DEVOPS_ORG%', devOpsOrg);
     const repo = process.env.REPO;
 
-    console.log('Initialize dev ops connection ...');
+    core.info('Initialize dev ops connection ...');
     let azWorkApi;
     try {
-      let orgUrl = `https://dev.azure.com/${devOpsOrg}`;
-      let authHandler = azdev.getPersonalAccessTokenHandler(azToken);
-      let azWebApi = new azdev.WebApi(orgUrl, authHandler);
+      const orgUrl = `https://dev.azure.com/${devOpsOrg}`;
+      const authHandler = azdev.getPersonalAccessTokenHandler(azToken);
+      const azWebApi = new azdev.WebApi(orgUrl, authHandler);
       azWorkApi = await azWebApi.getWorkItemTrackingApi();
     } catch (exception) {
-      console.log(`... failed! ${exception}`);
+      core.info(`... failed! ${exception}`);
       core.setFailed('Failed connection to dev ops!');
       return;
     }
-    console.log('... success!');
+    core.info('... success!');
 
     hasError = false;
-    console.log('Retrieving internalRepoId ...');
+    core.info('Retrieving internalRepoId ...');
     try {
       const dataProviderResponse = await fetch(dataProviderUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Basic ${Buffer.from(':' + azToken).toString('base64')}`,
+          Authorization: `Basic ${Buffer.from(`:${azToken}`).toString('base64')}`,
           Accept: 'application/json'
         },
         body: JSON.stringify({
@@ -78,8 +76,8 @@ export async function run() {
       const internalRepoId =
         responseData.data[msGitHubLinkDataProviderLink]?.resolvedLinkItems?.[0]?.repoInternalId ?? null;
 
-      console.log(internalRepoId);
-      console.log('... success!');
+      core.info(internalRepoId);
+      core.info('... success!');
 
       if (null === internalRepoId || internalRepoId.length === 0) {
         throw new Error(`Internal repo url couldn't be resolved.`);
@@ -87,8 +85,8 @@ export async function run() {
 
       const artifactUrl = `vstfs:///GitHub/PullRequest/${internalRepoId}%2F${prRequestId}`;
       try {
-        console.log('trying to create the pull request link ...');
-        workItem = await azWorkApi.updateWorkItem(
+        core.info('trying to create the pull request link ...');
+        await azWorkApi.updateWorkItem(
           {},
           [
             {
@@ -111,28 +109,28 @@ export async function run() {
           undefined,
           WorkItemExpand.Relations
         );
-        console.log('... success!');
+        core.info('... success!');
       } catch (exception) {
         const errorMessage = exception.toString();
         if (-1 !== errorMessage.indexOf('already exists')) {
-          console.log('... (already exists) ...');
+          core.info('... (already exists) ...');
         } else {
           throw exception;
         }
       }
     } catch (exception) {
       hasError = true;
-      console.log(`... failed! ${exception}`);
+      core.info(`... failed! ${exception}`);
       core.setFailed(`Failed to retrieve internalRepoId!`);
       return;
     }
 
     if (!hasError) {
-      console.log('... process complete!');
+      core.info('... process complete!');
     }
   } catch (error) {
-    console.error(error);
-    core.setFailed('Unknown error' + error);
+    core.error(error);
+    core.setFailed(`Unknown error: ${error}`);
     throw error;
   }
 }
