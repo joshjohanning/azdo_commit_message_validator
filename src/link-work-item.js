@@ -157,11 +157,11 @@ export async function validateWorkItemExists(devOpsOrg, azToken, workItemId) {
       return true;
     }
 
-    core.info(`... work item ${workItemId} not found`);
+    core.warning(`... work item ${workItemId} not found`);
     return false;
   } catch (error) {
     // 404 or other errors mean work item doesn't exist
-    core.info(`... work item ${workItemId} not found: ${error.message}`);
+    core.warning(`... work item ${workItemId} not found: ${error.message}`);
     return false;
   }
 }
