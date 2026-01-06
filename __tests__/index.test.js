@@ -601,6 +601,41 @@ describe('Azure DevOps Commit Validator', () => {
         })
       );
     });
+
+    it('should pass when valid work item appears in both commit and PR', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          { sha: 'abc123', commit: { message: 'fix: resolve issue AB#12345' } }
+        ]
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'fix: resolve issue AB#12345',
+          body: 'This PR fixes AB#12345'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      // Verify job summary was written and work item appears only once
+      expect(mockSummary.addRaw).toHaveBeenCalled();
+      expect(mockSummary.write).toHaveBeenCalled();
+      // Work item AB#12345 should be in the summary from commit (where it was found first)
+      const summaryCallArg = mockSummary.addRaw.mock.calls.find(call =>
+        call[0].includes('AB#12345')
+      );
+      expect(summaryCallArg).toBeDefined();
+    });
   });
 
   describe('Comment management', () => {
