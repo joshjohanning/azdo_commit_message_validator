@@ -42,7 +42,7 @@ export async function run() {
     // Validate that at least one check is enabled
     if (!checkPullRequest && !checkCommits) {
       core.setFailed(
-        "At least one of 'check-commits' or 'check-pull-request' must be set to true. Both are currently set to false."
+        `At least one of 'check-commits' or 'check-pull-request' must be set to true. Both are currently set to false.`
       );
       return;
     }
