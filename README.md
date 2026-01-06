@@ -18,10 +18,11 @@ This action validates that pull requests and commits contain Azure DevOps work i
 
 ## Action Output
 
-The action provides visibility into linked work items through the **Job Summary**:
+The action provides visibility into work items through the **Job Summary**:
 
-- A summary of all linked work items is added to the workflow run's job summary page
+- A summary of all work items found in commits and PR is added to the workflow run's job summary page
 - Includes clickable links to commits and displays associated work items
+- Shows which work items were **linked** to the PR (when `link-commits-to-pull-request` is enabled) vs. **verified** (when `validate-work-item-exists` is enabled)
 - Provides a quick reference of work items associated with the PR
 
 ## Usage
