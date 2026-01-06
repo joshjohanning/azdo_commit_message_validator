@@ -165,7 +165,7 @@ export async function run() {
       }
     }
 
-    // Write job summary once at the end (notices/summary were added throughout execution)
+    // Write job summary once at the end (summary content was added throughout execution)
     await core.summary.write();
   } catch (error) {
     core.setFailed(`Action failed with error: ${error}`);
@@ -496,26 +496,28 @@ async function checkPullRequestForWorkItems(
           return invalidWorkItems;
         }
 
-        // All work items valid - add job summary for each
+        // All work items valid - add job summary for each (only if not already added from commits)
         for (const workItem of uniqueWorkItems) {
           const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
-          core.summary.addRaw(`- Pull request #${pullNumber} linked to work item AB#${workItemNumber}\n`);
+          // Only add to summary if this work item wasn't already added from a commit
+          if (!workItemToCommitMap.has(workItemNumber) || workItemToCommitMap.get(workItemNumber) === null) {
+            core.summary.addRaw(`- Pull request #${pullNumber} linked to work item AB#${workItemNumber}\n`);
+          }
         }
 
         // All work items valid - return empty array
         return [];
       }
 
-      // Validation disabled - add job summary for each work item
+      // Validation disabled - add job summary for each work item (only if not already added from commits)
       for (const workItem of uniqueWorkItems) {
         const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
 
-        // Add to the workItemToCommitMap if not already there
+        // Only add to map and summary if this work item wasn't already added from a commit
         if (!workItemToCommitMap.has(workItemNumber)) {
           workItemToCommitMap.set(workItemNumber, null); // null indicates it's from PR title/body
+          core.summary.addRaw(`- Pull request #${pullNumber} linked to work item AB#${workItemNumber}\n`);
         }
-
-        core.summary.addRaw(`- Pull request #${pullNumber} linked to work item AB#${workItemNumber}\n`);
       }
 
       // Validation disabled - return empty array
