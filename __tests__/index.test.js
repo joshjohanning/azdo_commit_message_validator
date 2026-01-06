@@ -128,6 +128,84 @@ describe('Azure DevOps Commit Validator', () => {
       // Restore context
       mockContext.payload.pull_request = originalPR;
     });
+
+    it('should fail if both check-commits and check-pull-request are false', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'github-token') return 'github-token';
+        return 'false';
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        "At least one of 'check-commits' or 'check-pull-request' must be set to true. Both are currently set to false."
+      );
+    });
+
+    it('should pass when only check-commits is enabled', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'fail-if-missing-workitem-commit-link') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: []
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should pass when only check-pull-request is enabled', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'Test PR AB#123',
+          body: 'Test body'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should pass when both checks are enabled', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'fail-if-missing-workitem-commit-link') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: []
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'Test PR AB#123',
+          body: 'Test body'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
   });
 
   describe('Commit validation', () => {
