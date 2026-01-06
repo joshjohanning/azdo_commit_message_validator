@@ -363,13 +363,12 @@ async function checkCommitsForWorkItems(
 
       await linkWorkItem();
 
-      // Add notice annotation and job summary for visibility
+      // Add job summary for visibility
       const commitInfo = workItemToCommitMap.get(workItemId);
       if (commitInfo) {
-        core.notice(`Work item AB#${workItemId} (from commit ${commitInfo.shortSha}) linked to pull request #${pullNumber}`, {
-          title: 'Work Item Linked'
-        });
-        core.summary.addRaw(`- Work item AB#${workItemId} (from commit [\`${commitInfo.shortSha}\`](${context.payload.repository?.html_url}/commit/${commitInfo.sha})) linked to pull request #${pullNumber}\n`);
+        core.summary.addRaw(
+          `- Work item AB#${workItemId} (from commit [\`${commitInfo.shortSha}\`](${context.payload.repository?.html_url}/commit/${commitInfo.sha})) linked to pull request #${pullNumber}\n`
+        );
       }
     }
   }
@@ -497,12 +496,9 @@ async function checkPullRequestForWorkItems(
           return invalidWorkItems;
         }
 
-        // All work items valid - add notice and job summary for each
+        // All work items valid - add job summary for each
         for (const workItem of uniqueWorkItems) {
           const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
-          core.notice(`Pull request linked to work item AB#${workItemNumber}`, {
-            title: 'Work Item Linked'
-          });
           core.summary.addRaw(`- Pull request #${pullNumber} linked to work item AB#${workItemNumber}\n`);
         }
 
@@ -510,7 +506,7 @@ async function checkPullRequestForWorkItems(
         return [];
       }
 
-      // Validation disabled - add notice and job summary for each work item
+      // Validation disabled - add job summary for each work item
       for (const workItem of uniqueWorkItems) {
         const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
 
@@ -519,9 +515,6 @@ async function checkPullRequestForWorkItems(
           workItemToCommitMap.set(workItemNumber, null); // null indicates it's from PR title/body
         }
 
-        core.notice(`Pull request linked to work item AB#${workItemNumber}`, {
-          title: 'Work Item Linked'
-        });
         core.summary.addRaw(`- Pull request #${pullNumber} linked to work item AB#${workItemNumber}\n`);
       }
 
