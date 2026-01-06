@@ -276,7 +276,7 @@ describe('Azure DevOps Commit Validator', () => {
       );
     });
 
-    it('should pass when link-commits-to-pull-request is false even if azure-devops config is missing', async () => {
+    it('should pass when link-commits-to-pull-request is false and validate-work-item-exists is false even if azure-devops config is missing', async () => {
       mockGetInput.mockImplementation(name => {
         const defaults = {
           'check-pull-request': 'false',
@@ -287,7 +287,7 @@ describe('Azure DevOps Commit Validator', () => {
           'azure-devops-organization': '',
           'github-token': 'github-token',
           'comment-on-failure': 'true',
-          'validate-work-item-exists': 'false'
+          'validate-work-item-exists': 'false' // Validation disabled
         };
         return defaults[name] || '';
       });
@@ -301,8 +301,31 @@ describe('Azure DevOps Commit Validator', () => {
 
       await run();
 
-      // Should not call setFailed for missing Azure DevOps config since linking is disabled
+      // Should not call setFailed for missing Azure DevOps config since both features are disabled
       expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should fail when validate-work-item-exists is true but azure-devops credentials are missing', async () => {
+      mockGetInput.mockImplementation(name => {
+        const defaults = {
+          'check-pull-request': 'false',
+          'check-commits': 'true',
+          'fail-if-missing-workitem-commit-link': 'true',
+          'link-commits-to-pull-request': 'false', // Linking disabled
+          'azure-devops-token': '',
+          'azure-devops-organization': '',
+          'github-token': 'github-token',
+          'comment-on-failure': 'true',
+          'validate-work-item-exists': 'true' // Validation enabled but no credentials
+        };
+        return defaults[name] || '';
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        'The following inputs are required when validate-work-item-exists is true: azure-devops-organization, azure-devops-token'
+      );
     });
   });
 
