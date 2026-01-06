@@ -56,6 +56,23 @@ export async function run() {
       return;
     }
 
+    // Validate Azure DevOps configuration if linking or work item validation is enabled
+    if (linkCommitsToPullRequest || validateWorkItemExistsFlag) {
+      const missingConfig = [];
+      if (!azureDevopsOrganization) missingConfig.push('azure-devops-organization');
+      if (!azureDevopsToken) missingConfig.push('azure-devops-token');
+
+      if (missingConfig.length > 0) {
+        const features = [];
+        if (linkCommitsToPullRequest) features.push('link-commits-to-pull-request');
+        if (validateWorkItemExistsFlag) features.push('validate-work-item-exists');
+        core.setFailed(
+          `The following input${missingConfig.length === 1 ? ' is' : 's are'} required when ${features.join(' or ')} ${features.length === 1 ? 'is' : 'are'} enabled: ${missingConfig.join(', ')}`
+        );
+        return;
+      }
+    }
+
     const octokit = github.getOctokit(githubToken);
 
     // Store work item to commit mapping and validation results

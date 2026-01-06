@@ -215,6 +215,127 @@ describe('Azure DevOps Commit Validator', () => {
 
       expect(mockSetFailed).not.toHaveBeenCalled();
     });
+
+    it('should fail when link-commits-to-pull-request is true but azure-devops-organization is missing', async () => {
+      mockGetInput.mockImplementation(name => {
+        const defaults = {
+          'check-pull-request': 'false',
+          'check-commits': 'true',
+          'fail-if-missing-workitem-commit-link': 'true',
+          'link-commits-to-pull-request': 'true',
+          'azure-devops-token': 'test-token',
+          'azure-devops-organization': '', // Missing org
+          'github-token': 'github-token',
+          'comment-on-failure': 'true',
+          'validate-work-item-exists': 'false'
+        };
+        return defaults[name] || '';
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        'The following input is required when link-commits-to-pull-request is enabled: azure-devops-organization'
+      );
+    });
+
+    it('should fail when link-commits-to-pull-request is true but azure-devops-token is missing', async () => {
+      mockGetInput.mockImplementation(name => {
+        const defaults = {
+          'check-pull-request': 'false',
+          'check-commits': 'true',
+          'fail-if-missing-workitem-commit-link': 'true',
+          'link-commits-to-pull-request': 'true',
+          'azure-devops-token': '', // Missing token
+          'azure-devops-organization': 'test-org',
+          'github-token': 'github-token',
+          'comment-on-failure': 'true',
+          'validate-work-item-exists': 'false'
+        };
+        return defaults[name] || '';
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        'The following input is required when link-commits-to-pull-request is enabled: azure-devops-token'
+      );
+    });
+
+    it('should pass when link-commits-to-pull-request is false and validate-work-item-exists is false even if azure-devops config is missing', async () => {
+      mockGetInput.mockImplementation(name => {
+        const defaults = {
+          'check-pull-request': 'false',
+          'check-commits': 'true',
+          'fail-if-missing-workitem-commit-link': 'true',
+          'link-commits-to-pull-request': 'false', // Linking disabled
+          'azure-devops-token': '',
+          'azure-devops-organization': '',
+          'github-token': 'github-token',
+          'comment-on-failure': 'true',
+          'validate-work-item-exists': 'false' // Validation disabled
+        };
+        return defaults[name] || '';
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([
+        {
+          sha: '1234567890abcdef',
+          commit: { message: 'Fix: AB#123' }
+        }
+      ]);
+
+      await run();
+
+      // Should not call setFailed for missing Azure DevOps config since both features are disabled
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should fail when validate-work-item-exists is true but azure-devops credentials are missing', async () => {
+      mockGetInput.mockImplementation(name => {
+        const defaults = {
+          'check-pull-request': 'false',
+          'check-commits': 'true',
+          'fail-if-missing-workitem-commit-link': 'true',
+          'link-commits-to-pull-request': 'false', // Linking disabled
+          'azure-devops-token': '',
+          'azure-devops-organization': '',
+          'github-token': 'github-token',
+          'comment-on-failure': 'true',
+          'validate-work-item-exists': 'true' // Validation enabled but no credentials
+        };
+        return defaults[name] || '';
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        'The following inputs are required when validate-work-item-exists is enabled: azure-devops-organization, azure-devops-token'
+      );
+    });
+
+    it('should fail when both link-commits-to-pull-request and validate-work-item-exists are true but credentials are missing', async () => {
+      mockGetInput.mockImplementation(name => {
+        const defaults = {
+          'check-pull-request': 'false',
+          'check-commits': 'true',
+          'fail-if-missing-workitem-commit-link': 'true',
+          'link-commits-to-pull-request': 'true', // Linking enabled
+          'azure-devops-token': '',
+          'azure-devops-organization': '',
+          'github-token': 'github-token',
+          'comment-on-failure': 'true',
+          'validate-work-item-exists': 'true' // Validation also enabled
+        };
+        return defaults[name] || '';
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        'The following inputs are required when link-commits-to-pull-request or validate-work-item-exists are enabled: azure-devops-organization, azure-devops-token'
+      );
+    });
   });
 
   describe('Commit validation', () => {
@@ -1193,7 +1314,7 @@ describe('Azure DevOps Commit Validator', () => {
   });
 
   describe('Edge cases - Work item linking with missing credentials', () => {
-    it('should attempt linking without failing when credentials are present', async () => {
+    it('should fail when linking is enabled but credentials are missing', async () => {
       mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'true';
         if (name === 'check-pull-request') return 'false';
@@ -1220,8 +1341,12 @@ describe('Azure DevOps Commit Validator', () => {
 
       await run();
 
-      // Should still call linkWorkItem even with empty credentials
-      expect(mockLinkWorkItem).toHaveBeenCalled();
+      // Should fail due to missing Azure DevOps organization and token
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        'The following inputs are required when link-commits-to-pull-request is enabled: azure-devops-organization, azure-devops-token'
+      );
+      // Should not call linkWorkItem since validation failed
+      expect(mockLinkWorkItem).not.toHaveBeenCalled();
     });
   });
 
