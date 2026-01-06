@@ -612,9 +612,7 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       mockOctokit.rest.pulls.listCommits.mockResolvedValue({
-        data: [
-          { sha: 'abc123', commit: { message: 'fix: resolve issue AB#12345' } }
-        ]
+        data: [{ sha: 'abc123', commit: { message: 'fix: resolve issue AB#12345' } }]
       });
 
       mockOctokit.rest.pulls.get.mockResolvedValue({
@@ -631,9 +629,7 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockSummary.addRaw).toHaveBeenCalled();
       expect(mockSummary.write).toHaveBeenCalled();
       // Work item AB#12345 should be in the summary from commit (where it was found first)
-      const summaryCallArg = mockSummary.addRaw.mock.calls.find(call =>
-        call[0].includes('AB#12345')
-      );
+      const summaryCallArg = mockSummary.addRaw.mock.calls.find(call => call[0].includes('AB#12345'));
       expect(summaryCallArg).toBeDefined();
     });
   });
