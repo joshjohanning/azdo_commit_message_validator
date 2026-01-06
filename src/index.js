@@ -156,6 +156,9 @@ export async function run() {
         core.info('... invalid work item comment updated to success');
       }
     }
+
+    // Write job summary once at the end (notices/summary were added throughout execution)
+    await core.summary.write();
   } catch (error) {
     core.setFailed(`Action failed with error: ${error}`);
   }
@@ -361,7 +364,6 @@ async function checkCommitsForWorkItems(
         core.summary.addRaw(`- Work item AB#${workItemId} (from commit [\`${commitInfo.shortSha}\`](${context.payload.repository?.html_url}/commit/${commitInfo.sha})) linked to pull request #${pullNumber}\n`);
       }
     }
-    await core.summary.write();
   }
 
   // Return the workItemToCommitMap and validation results for use in PR validation
@@ -495,7 +497,6 @@ async function checkPullRequestForWorkItems(
           });
           core.summary.addRaw(`- Pull request #${pullNumber} linked to work item AB#${workItemNumber}\n`);
         }
-        await core.summary.write();
 
         // All work items valid - return empty array
         return [];
@@ -504,7 +505,7 @@ async function checkPullRequestForWorkItems(
       // Validation disabled - add notice and job summary for each work item
       for (const workItem of uniqueWorkItems) {
         const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
-        
+
         // Add to the workItemToCommitMap if not already there
         if (!workItemToCommitMap.has(workItemNumber)) {
           workItemToCommitMap.set(workItemNumber, null); // null indicates it's from PR title/body
@@ -515,7 +516,6 @@ async function checkPullRequestForWorkItems(
         });
         core.summary.addRaw(`- Pull request #${pullNumber} linked to work item AB#${workItemNumber}\n`);
       }
-      await core.summary.write();
 
       // Validation disabled - return empty array
       return [];
