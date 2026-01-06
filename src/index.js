@@ -181,6 +181,9 @@ export async function run() {
         core.info('... invalid work item comment updated to success');
       }
     }
+
+    // Write job summary once at the end (summary content was added throughout execution)
+    await core.summary.write();
   } catch (error) {
     core.setFailed(`Action failed with error: ${error}`);
   }
@@ -357,25 +360,43 @@ async function checkCommitsForWorkItems(
     // (Don't update success comment here - let caller handle it after checking PR too)
   }
 
-  // Link work items to PR if enabled (after deduplication)
-  if (linkCommitsToPullRequest && allWorkItems.length > 0) {
+  // Process work items found in commits (after deduplication)
+  if (allWorkItems.length > 0) {
     // Remove duplicates
     const uniqueWorkItems = [...new Set(allWorkItems)];
 
     for (const match of uniqueWorkItems) {
       const workItemId = match.substring(3); // Remove "AB#" prefix
-      core.info(`Linking work item ${workItemId} to pull request ${pullNumber}...`);
+      const commitInfo = workItemToCommitMap.get(workItemId);
 
-      // Set environment variables for main.js
-      process.env.REPO_TOKEN = githubToken;
-      process.env.AZURE_DEVOPS_ORG = azureDevopsOrganization;
-      process.env.AZURE_DEVOPS_PAT = azureDevopsToken;
-      process.env.WORKITEMID = workItemId;
-      process.env.PULLREQUESTID = pullNumber.toString();
-      process.env.REPO = `${context.repo.owner}/${context.repo.repo}`;
-      process.env.GITHUB_SERVER_URL = process.env.GITHUB_SERVER_URL || 'https://github.com';
+      // Link work items to PR if enabled
+      if (linkCommitsToPullRequest) {
+        core.info(`Linking work item ${workItemId} to pull request ${pullNumber}...`);
 
-      await linkWorkItem();
+        // Set environment variables for main.js
+        process.env.REPO_TOKEN = githubToken;
+        process.env.AZURE_DEVOPS_ORG = azureDevopsOrganization;
+        process.env.AZURE_DEVOPS_PAT = azureDevopsToken;
+        process.env.WORKITEMID = workItemId;
+        process.env.PULLREQUESTID = pullNumber.toString();
+        process.env.REPO = `${context.repo.owner}/${context.repo.repo}`;
+        process.env.GITHUB_SERVER_URL = process.env.GITHUB_SERVER_URL || 'https://github.com';
+
+        await linkWorkItem();
+      }
+
+      // Add job summary for visibility (regardless of linking setting)
+      if (commitInfo) {
+        if (linkCommitsToPullRequest) {
+          core.summary.addRaw(
+            `- ✅ **Linked:** Work item AB#${workItemId} (from commit [\`${commitInfo.shortSha}\`](${context.payload.repository?.html_url}/commit/${commitInfo.sha})) linked to PR #${pullNumber}\n`
+          );
+        } else {
+          core.summary.addRaw(
+            `- ✔️ **Verified:** Work item AB#${workItemId} found in commit [\`${commitInfo.shortSha}\`](${context.payload.repository?.html_url}/commit/${commitInfo.sha})\n`
+          );
+        }
+      }
     }
   }
 
@@ -502,8 +523,28 @@ async function checkPullRequestForWorkItems(
           return invalidWorkItems;
         }
 
+        // All work items valid - add job summary for each (only if not already added from commits)
+        for (const workItem of uniqueWorkItems) {
+          const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
+          // Only add to summary if this work item wasn't already added from a commit
+          if (!workItemToCommitMap.has(workItemNumber) || workItemToCommitMap.get(workItemNumber) === null) {
+            core.summary.addRaw(`- ✔️ **Verified:** Work item AB#${workItemNumber} found in PR title/body\n`);
+          }
+        }
+
         // All work items valid - return empty array
         return [];
+      }
+
+      // Validation disabled - add job summary for each work item (only if not already added from commits)
+      for (const workItem of uniqueWorkItems) {
+        const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
+
+        // Only add to map and summary if this work item wasn't already added from a commit
+        if (!workItemToCommitMap.has(workItemNumber)) {
+          workItemToCommitMap.set(workItemNumber, null); // null indicates it's from PR title/body
+          core.summary.addRaw(`- ✔️ **Verified:** Work item AB#${workItemNumber} found in PR title/body\n`);
+        }
       }
 
       // Validation disabled - return empty array

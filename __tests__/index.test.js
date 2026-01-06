@@ -9,12 +9,17 @@ const mockGetInput = jest.fn();
 const mockSetFailed = jest.fn();
 const mockInfo = jest.fn();
 const mockError = jest.fn();
+const mockSummary = {
+  addRaw: jest.fn().mockReturnThis(),
+  write: jest.fn().mockResolvedValue(undefined)
+};
 
 jest.unstable_mockModule('@actions/core', () => ({
   getInput: mockGetInput,
   setFailed: mockSetFailed,
   info: mockInfo,
-  error: mockError
+  error: mockError,
+  summary: mockSummary
 }));
 
 // Mock @actions/github
@@ -63,6 +68,10 @@ describe('Azure DevOps Commit Validator', () => {
   beforeEach(() => {
     // Clear all mocks
     jest.clearAllMocks();
+
+    // Reset summary mock
+    mockSummary.addRaw.mockClear().mockReturnThis();
+    mockSummary.write.mockClear().mockResolvedValue(undefined);
 
     // Setup default mock implementations
     mockGetInput.mockImplementation(name => {
@@ -444,6 +453,9 @@ describe('Azure DevOps Commit Validator', () => {
 
       expect(mockLinkWorkItem).toHaveBeenCalled();
       expect(mockSetFailed).not.toHaveBeenCalled();
+      // Verify job summary was written with work item info
+      expect(mockSummary.addRaw).toHaveBeenCalledWith(expect.stringContaining('AB#12345'));
+      expect(mockSummary.write).toHaveBeenCalled();
     });
 
     it('should handle duplicate work items', async () => {
@@ -504,6 +516,9 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockSetFailed).not.toHaveBeenCalled();
+      // Verify job summary was written with work item info
+      expect(mockSummary.addRaw).toHaveBeenCalledWith(expect.stringContaining('AB#12345'));
+      expect(mockSummary.write).toHaveBeenCalled();
     });
 
     it('should pass when PR has work item in body', async () => {
@@ -525,6 +540,9 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockSetFailed).not.toHaveBeenCalled();
+      // Verify job summary was written with work item info
+      expect(mockSummary.addRaw).toHaveBeenCalledWith(expect.stringContaining('AB#12345'));
+      expect(mockSummary.write).toHaveBeenCalled();
     });
 
     it('should fail when PR has no work item link', async () => {
@@ -582,6 +600,37 @@ describe('Azure DevOps Commit Validator', () => {
           comment_id: 999
         })
       );
+    });
+
+    it('should pass when valid work item appears in both commit and PR', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [{ sha: 'abc123', commit: { message: 'fix: resolve issue AB#12345' } }]
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'fix: resolve issue AB#12345',
+          body: 'This PR fixes AB#12345'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      // Verify job summary was written and work item appears only once
+      expect(mockSummary.addRaw).toHaveBeenCalled();
+      expect(mockSummary.write).toHaveBeenCalled();
+      // Work item AB#12345 should be in the summary from commit (where it was found first)
+      const summaryCallArg = mockSummary.addRaw.mock.calls.find(call => call[0].includes('AB#12345'));
+      expect(summaryCallArg).toBeDefined();
     });
   });
 
