@@ -334,6 +334,9 @@ describe('Azure DevOps Commit Validator', () => {
 
       expect(mockLinkWorkItem).toHaveBeenCalled();
       expect(mockSetFailed).not.toHaveBeenCalled();
+      // Verify job summary was written with work item info
+      expect(mockSummary.addRaw).toHaveBeenCalledWith(expect.stringContaining('AB#12345'));
+      expect(mockSummary.write).toHaveBeenCalled();
     });
 
     it('should handle duplicate work items', async () => {
@@ -394,6 +397,9 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockSetFailed).not.toHaveBeenCalled();
+      // Verify job summary was written with work item info
+      expect(mockSummary.addRaw).toHaveBeenCalledWith(expect.stringContaining('AB#12345'));
+      expect(mockSummary.write).toHaveBeenCalled();
     });
 
     it('should pass when PR has work item in body', async () => {
@@ -415,6 +421,9 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockSetFailed).not.toHaveBeenCalled();
+      // Verify job summary was written with work item info
+      expect(mockSummary.addRaw).toHaveBeenCalledWith(expect.stringContaining('AB#12345'));
+      expect(mockSummary.write).toHaveBeenCalled();
     });
 
     it('should fail when PR has no work item link', async () => {
