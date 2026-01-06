@@ -23,7 +23,6 @@ const dataProviderUrlBase = `https://dev.azure.com/%DEVOPS_ORG%/_apis/Contributi
  */
 export async function run() {
   let hasError = false;
-  let workItem = null;
   try {
     const devOpsOrg = process.env.AZURE_DEVOPS_ORG;
     const azToken = process.env.AZURE_DEVOPS_PAT;
@@ -33,28 +32,28 @@ export async function run() {
     const dataProviderUrl = dataProviderUrlBase.replace('%DEVOPS_ORG%', devOpsOrg);
     const repo = process.env.REPO;
 
-    console.log('Initialize dev ops connection ...');
+    core.info('Initialize dev ops connection ...');
     let azWorkApi;
     try {
-      let orgUrl = `https://dev.azure.com/${devOpsOrg}`;
-      let authHandler = azdev.getPersonalAccessTokenHandler(azToken);
-      let azWebApi = new azdev.WebApi(orgUrl, authHandler);
+      const orgUrl = `https://dev.azure.com/${devOpsOrg}`;
+      const authHandler = azdev.getPersonalAccessTokenHandler(azToken);
+      const azWebApi = new azdev.WebApi(orgUrl, authHandler);
       azWorkApi = await azWebApi.getWorkItemTrackingApi();
     } catch (exception) {
-      console.log(`... failed! ${exception}`);
+      core.info(`... failed! ${exception}`);
       core.setFailed('Failed connection to dev ops!');
       return;
     }
-    console.log('... success!');
+    core.info('... success!');
 
     hasError = false;
-    console.log('Retrieving internalRepoId ...');
+    core.info('Retrieving internalRepoId ...');
     try {
       const dataProviderResponse = await fetch(dataProviderUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Basic ${Buffer.from(':' + azToken).toString('base64')}`,
+          Authorization: `Basic ${Buffer.from(`:${azToken}`).toString('base64')}`,
           Accept: 'application/json'
         },
         body: JSON.stringify({
@@ -76,8 +75,8 @@ export async function run() {
       const internalRepoId =
         responseData.data[msGitHubLinkDataProviderLink]?.resolvedLinkItems?.[0]?.repoInternalId ?? null;
 
-      console.log(internalRepoId);
-      console.log('... success!');
+      core.info(internalRepoId);
+      core.info('... success!');
 
       if (null === internalRepoId || internalRepoId.length === 0) {
         throw new Error(`Internal repo url couldn't be resolved.`);
@@ -85,8 +84,8 @@ export async function run() {
 
       const artifactUrl = `vstfs:///GitHub/PullRequest/${internalRepoId}%2F${prRequestId}`;
       try {
-        console.log('trying to create the pull request link ...');
-        workItem = await azWorkApi.updateWorkItem(
+        core.info('trying to create the pull request link ...');
+        await azWorkApi.updateWorkItem(
           {},
           [
             {
@@ -109,27 +108,27 @@ export async function run() {
           undefined,
           WorkItemExpand.Relations
         );
-        console.log('... success!');
+        core.info('... success!');
       } catch (exception) {
         const errorMessage = exception.toString();
         if (-1 !== errorMessage.indexOf('already exists')) {
-          console.log('... (already exists) ...');
+          core.info('... (already exists) ...');
         } else {
           throw exception;
         }
       }
     } catch (exception) {
       hasError = true;
-      console.log(`... failed! ${exception}`);
+      core.info(`... failed! ${exception}`);
       core.setFailed(`Failed to retrieve internalRepoId!`);
       return;
     }
 
     if (!hasError) {
-      console.log('... process complete!');
+      core.info('... process complete!');
     }
   } catch (error) {
-    console.error(error);
+    core.error(error);
     core.setFailed(`Unknown error: ${error}`);
     throw error;
   }
@@ -145,7 +144,7 @@ export async function run() {
  */
 export async function validateWorkItemExists(devOpsOrg, azToken, workItemId) {
   try {
-    console.log(`Validating work item ${workItemId} exists...`);
+    core.info(`Validating work item ${workItemId} exists...`);
     const orgUrl = `https://dev.azure.com/${devOpsOrg}`;
     const authHandler = azdev.getPersonalAccessTokenHandler(azToken);
     const azWebApi = new azdev.WebApi(orgUrl, authHandler);
@@ -154,15 +153,15 @@ export async function validateWorkItemExists(devOpsOrg, azToken, workItemId) {
     const workItem = await azWorkApi.getWorkItem(parseInt(workItemId));
 
     if (workItem && workItem.id) {
-      console.log(`... work item ${workItemId} exists`);
+      core.info(`... work item ${workItemId} exists`);
       return true;
     }
 
-    console.log(`... work item ${workItemId} not found`);
+    core.warning(`... work item ${workItemId} not found`);
     return false;
   } catch (error) {
     // 404 or other errors mean work item doesn't exist
-    console.log(`... work item ${workItemId} not found: ${error.message}`);
+    core.warning(`... work item ${workItemId} not found: ${error.message}`);
     return false;
   }
 }
