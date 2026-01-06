@@ -248,7 +248,9 @@ describe('Azure DevOps Commit Validator', () => {
 
       await run();
 
-      expect(mockSetFailed).toHaveBeenCalledWith('Azure DevOps token is required when link-commits-to-pull-request is true');
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        'Azure DevOps token is required when link-commits-to-pull-request is true'
+      );
     });
 
     it('should pass when link-commits-to-pull-request is false even if azure-devops config is missing', async () => {
