@@ -67,7 +67,7 @@ export async function run() {
         if (linkCommitsToPullRequest) features.push('link-commits-to-pull-request');
         if (validateWorkItemExistsFlag) features.push('validate-work-item-exists');
         core.setFailed(
-          `The following input${missingConfig.length === 1 ? ' is' : 's are'} required when ${features.join(' or ')} is true: ${missingConfig.join(', ')}`
+          `The following input${missingConfig.length === 1 ? ' is' : 's are'} required when ${features.join(' or ')} ${features.length === 1 ? 'is' : 'are'} enabled: ${missingConfig.join(', ')}`
         );
         return;
       }
