@@ -58,12 +58,14 @@ export async function run() {
 
     // Validate Azure DevOps configuration if linking is enabled
     if (linkCommitsToPullRequest) {
-      if (!azureDevopsOrganization) {
-        core.setFailed('Azure DevOps organization is required when link-commits-to-pull-request is true');
-        return;
-      }
-      if (!azureDevopsToken) {
-        core.setFailed('Azure DevOps token is required when link-commits-to-pull-request is true');
+      const missingConfig = [];
+      if (!azureDevopsOrganization) missingConfig.push('azure-devops-organization');
+      if (!azureDevopsToken) missingConfig.push('azure-devops-token');
+
+      if (missingConfig.length > 0) {
+        core.setFailed(
+          `The following input${missingConfig.length === 1 ? ' is' : 's are'} required when link-commits-to-pull-request is true: ${missingConfig.join(', ')}`
+        );
         return;
       }
     }

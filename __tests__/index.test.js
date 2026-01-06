@@ -226,7 +226,7 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockSetFailed).toHaveBeenCalledWith(
-        'Azure DevOps organization is required when link-commits-to-pull-request is true'
+        'The following input is required when link-commits-to-pull-request is true: azure-devops-organization'
       );
     });
 
@@ -249,7 +249,30 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockSetFailed).toHaveBeenCalledWith(
-        'Azure DevOps token is required when link-commits-to-pull-request is true'
+        'The following input is required when link-commits-to-pull-request is true: azure-devops-token'
+      );
+    });
+
+    it('should fail when link-commits-to-pull-request is true but both azure-devops-organization and azure-devops-token are missing', async () => {
+      mockGetInput.mockImplementation(name => {
+        const defaults = {
+          'check-pull-request': 'false',
+          'check-commits': 'true',
+          'fail-if-missing-workitem-commit-link': 'true',
+          'link-commits-to-pull-request': 'true',
+          'azure-devops-token': '', // Missing token
+          'azure-devops-organization': '', // Missing org
+          'github-token': 'github-token',
+          'comment-on-failure': 'true',
+          'validate-work-item-exists': 'false'
+        };
+        return defaults[name] || '';
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        'The following inputs are required when link-commits-to-pull-request is true: azure-devops-organization, azure-devops-token'
       );
     });
 
@@ -1277,9 +1300,9 @@ describe('Azure DevOps Commit Validator', () => {
 
       await run();
 
-      // Should fail due to missing Azure DevOps organization
+      // Should fail due to missing Azure DevOps organization and token
       expect(mockSetFailed).toHaveBeenCalledWith(
-        'Azure DevOps organization is required when link-commits-to-pull-request is true'
+        'The following inputs are required when link-commits-to-pull-request is true: azure-devops-organization, azure-devops-token'
       );
       // Should not call linkWorkItem since validation failed
       expect(mockLinkWorkItem).not.toHaveBeenCalled();
