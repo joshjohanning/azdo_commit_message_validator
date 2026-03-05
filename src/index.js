@@ -30,6 +30,11 @@ export async function run() {
   try {
     // Get inputs
     const checkPullRequest = core.getInput('check-pull-request') === 'true';
+    const validScopes = ['title-or-body', 'body-only', 'title-only'];
+    const pullRequestCheckScopeRaw = core.getInput('pull-request-check-scope');
+    const pullRequestCheckScope = validScopes.includes(pullRequestCheckScopeRaw)
+      ? pullRequestCheckScopeRaw
+      : 'title-or-body';
     const checkCommits = core.getInput('check-commits') === 'true';
     const failIfMissingWorkitemCommitLink = core.getInput('fail-if-missing-workitem-commit-link') === 'true';
     const linkCommitsToPullRequest = core.getInput('link-commits-to-pull-request') === 'true';
@@ -38,6 +43,13 @@ export async function run() {
     const githubToken = core.getInput('github-token');
     const commentOnFailure = core.getInput('comment-on-failure') === 'true';
     const validateWorkItemExistsFlag = core.getInput('validate-work-item-exists') === 'true';
+
+    // Warn if an invalid scope value was provided
+    if (checkPullRequest && pullRequestCheckScopeRaw && !validScopes.includes(pullRequestCheckScopeRaw)) {
+      core.warning(
+        `Invalid value '${pullRequestCheckScopeRaw}' for 'pull-request-check-scope'. Using default 'title-or-body'. Valid values are: ${validScopes.join(', ')}`
+      );
+    }
 
     // Validate that at least one check is enabled
     if (!checkPullRequest && !checkCommits) {
@@ -108,7 +120,8 @@ export async function run() {
         validateWorkItemExistsFlag,
         azureDevopsOrganization,
         azureDevopsToken,
-        workItemToCommitMap
+        workItemToCommitMap,
+        pullRequestCheckScope
       );
     }
 
@@ -415,6 +428,7 @@ async function checkCommitsForWorkItems(
  * @param {string} azureDevopsOrganization - Azure DevOps organization name
  * @param {string} azureDevopsToken - Azure DevOps PAT token
  * @param {Map} workItemToCommitMap - Map of work item IDs to commit info from checkCommitsForWorkItems
+ * @param {string} pullRequestCheckScope - Where to look for AB# in the PR: 'title-or-body', 'body-only', or 'title-only'
  * @returns {Array} Returns array of invalid work item IDs found in PR title/body
  */
 async function checkPullRequestForWorkItems(
@@ -425,7 +439,8 @@ async function checkPullRequestForWorkItems(
   validateWorkItemExistsFlag,
   azureDevopsOrganization,
   azureDevopsToken,
-  workItemToCommitMap
+  workItemToCommitMap,
+  pullRequestCheckScope = 'title-or-body'
 ) {
   const { owner, repo } = context.repo;
 
@@ -439,11 +454,32 @@ async function checkPullRequestForWorkItems(
   const pullBody = pullRequest.data.body || '';
   const pullTitle = pullRequest.data.title || '';
 
+  // Determine which text to check based on pull-request-check-scope
+  let textToCheck;
+  let scopeDescription;
+  switch (pullRequestCheckScope) {
+    case 'body-only':
+      textToCheck = pullBody;
+      scopeDescription = 'body';
+      break;
+    case 'title-only':
+      textToCheck = pullTitle;
+      scopeDescription = 'title';
+      break;
+    case 'title-or-body':
+    default:
+      textToCheck = `${pullTitle} ${pullBody}`;
+      scopeDescription = 'title or body';
+      break;
+  }
+
+  core.info(`Checking PR ${scopeDescription} for work item links (scope: ${pullRequestCheckScope})`);
+
   // Define common comment text patterns
   const FAILURE_COMMENT_TEXT = ':x: This pull request is not linked to a work item.';
   const SUCCESS_COMMENT_TEXT = ':white_check_mark: This pull request is now linked to a work item.';
 
-  if (!AB_PATTERN.test(`${pullTitle} ${pullBody}`)) {
+  if (!AB_PATTERN.test(textToCheck)) {
     core.info('PR not linked to a work item');
     core.error(
       `Pull Request not linked to work item(s): The pull request #${pullNumber} is not linked to any work item(s)`
@@ -455,7 +491,7 @@ async function checkPullRequestForWorkItems(
         octokit,
         context,
         pullNumber,
-        `${FAILURE_COMMENT_TEXT} Please update the title or body to include a work item and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.`,
+        `${FAILURE_COMMENT_TEXT} Please update the ${scopeDescription} to include a work item and re-run the failed job to continue. Any new commits to the pull request will also re-run the job.`,
         FAILURE_COMMENT_TEXT
       );
     }
@@ -489,8 +525,8 @@ async function checkPullRequestForWorkItems(
       core.info('... PR comment updated to success');
     }
 
-    // Extract work items from PR body and title and validate they exist
-    const workItems = `${pullBody} ${pullTitle}`.match(AB_PATTERN);
+    // Extract work items from the checked scope and validate they exist
+    const workItems = textToCheck.match(AB_PATTERN);
     if (workItems) {
       const uniqueWorkItems = [...new Set(workItems)];
 
