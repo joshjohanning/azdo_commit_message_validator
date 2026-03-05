@@ -10,7 +10,7 @@
 
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { run as linkWorkItem, validateWorkItemExists } from './link-work-item.js';
+import { run as linkWorkItem, validateWorkItemExists, getWorkItemTitle } from './link-work-item.js';
 
 /** Regex pattern to match Azure DevOps work item references (AB#123) */
 const AB_PATTERN = /AB#[0-9]+/gi;
@@ -38,6 +38,7 @@ export async function run() {
     const githubToken = core.getInput('github-token');
     const commentOnFailure = core.getInput('comment-on-failure') === 'true';
     const validateWorkItemExistsFlag = core.getInput('validate-work-item-exists') === 'true';
+    const appendWorkItemTitle = core.getInput('append-work-item-title') === 'true';
 
     // Validate that at least one check is enabled
     if (!checkPullRequest && !checkCommits) {
@@ -56,8 +57,8 @@ export async function run() {
       return;
     }
 
-    // Validate Azure DevOps configuration if linking or work item validation is enabled
-    if (linkCommitsToPullRequest || validateWorkItemExistsFlag) {
+    // Validate Azure DevOps configuration if linking, work item validation, or title appending is enabled
+    if (linkCommitsToPullRequest || validateWorkItemExistsFlag || appendWorkItemTitle) {
       const missingConfig = [];
       if (!azureDevopsOrganization) missingConfig.push('azure-devops-organization');
       if (!azureDevopsToken) missingConfig.push('azure-devops-token');
@@ -66,6 +67,7 @@ export async function run() {
         const features = [];
         if (linkCommitsToPullRequest) features.push('link-commits-to-pull-request');
         if (validateWorkItemExistsFlag) features.push('validate-work-item-exists');
+        if (appendWorkItemTitle) features.push('append-work-item-title');
         core.setFailed(
           `The following input${missingConfig.length === 1 ? ' is' : 's are'} required when ${features.join(' or ')} ${features.length === 1 ? 'is' : 'are'} enabled: ${missingConfig.join(', ')}`
         );
@@ -108,7 +110,8 @@ export async function run() {
         validateWorkItemExistsFlag,
         azureDevopsOrganization,
         azureDevopsToken,
-        workItemToCommitMap
+        workItemToCommitMap,
+        appendWorkItemTitle
       );
     }
 
@@ -415,6 +418,7 @@ async function checkCommitsForWorkItems(
  * @param {string} azureDevopsOrganization - Azure DevOps organization name
  * @param {string} azureDevopsToken - Azure DevOps PAT token
  * @param {Map} workItemToCommitMap - Map of work item IDs to commit info from checkCommitsForWorkItems
+ * @param {boolean} appendWorkItemTitle - Whether to append work item titles to AB# references in PR body
  * @returns {Array} Returns array of invalid work item IDs found in PR title/body
  */
 async function checkPullRequestForWorkItems(
@@ -425,7 +429,8 @@ async function checkPullRequestForWorkItems(
   validateWorkItemExistsFlag,
   azureDevopsOrganization,
   azureDevopsToken,
-  workItemToCommitMap
+  workItemToCommitMap,
+  appendWorkItemTitle = false
 ) {
   const { owner, repo } = context.repo;
 
@@ -532,6 +537,19 @@ async function checkPullRequestForWorkItems(
           }
         }
 
+        // Append work item titles to PR body if enabled
+        if (appendWorkItemTitle) {
+          await appendWorkItemTitlesToPRBody(
+            octokit,
+            context,
+            pullNumber,
+            pullBody,
+            uniqueWorkItems,
+            azureDevopsOrganization,
+            azureDevopsToken
+          );
+        }
+
         // All work items valid - return empty array
         return [];
       }
@@ -547,6 +565,19 @@ async function checkPullRequestForWorkItems(
         }
       }
 
+      // Append work item titles to PR body if enabled (even when validation is disabled)
+      if (appendWorkItemTitle && azureDevopsOrganization && azureDevopsToken) {
+        await appendWorkItemTitlesToPRBody(
+          octokit,
+          context,
+          pullNumber,
+          pullBody,
+          uniqueWorkItems,
+          azureDevopsOrganization,
+          azureDevopsToken
+        );
+      }
+
       // Validation disabled - return empty array
       return [];
     }
@@ -554,6 +585,74 @@ async function checkPullRequestForWorkItems(
 
   // PR not linked to any work items - return empty array (this is handled separately)
   return [];
+}
+
+/**
+ * Append work item titles to AB# references in the PR body
+ * Only updates references that don't already have a title appended.
+ * Uses the pattern: AB#123 -> AB#123 - Work Item Title
+ *
+ * @param {Object} octokit - GitHub API client
+ * @param {Object} context - GitHub Actions context
+ * @param {number} pullNumber - Pull request number
+ * @param {string} pullBody - Current PR body text
+ * @param {Array} workItems - Array of work item references (e.g. ['AB#123', 'AB#456'])
+ * @param {string} azureDevopsOrganization - Azure DevOps organization name
+ * @param {string} azureDevopsToken - Azure DevOps PAT token
+ */
+async function appendWorkItemTitlesToPRBody(
+  octokit,
+  context,
+  pullNumber,
+  pullBody,
+  workItems,
+  azureDevopsOrganization,
+  azureDevopsToken
+) {
+  const { owner, repo } = context.repo;
+  let updatedBody = pullBody;
+  let hasChanges = false;
+
+  for (const workItem of workItems) {
+    const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
+
+    // Skip if this AB# reference already has a title appended (AB#123 - ...)
+    const alreadyAnnotatedPattern = new RegExp(`AB#${workItemNumber}\\s+-\\s+\\S`, 'i');
+    if (alreadyAnnotatedPattern.test(updatedBody)) {
+      core.info(`Work item AB#${workItemNumber} already has title appended in PR body, skipping`);
+      continue;
+    }
+
+    const workItemInfo = await getWorkItemTitle(azureDevopsOrganization, azureDevopsToken, workItemNumber);
+    if (workItemInfo && workItemInfo.title) {
+      // Replace bare AB#123 with AB#123 - Title (only where not already annotated)
+      const barePattern = new RegExp(`AB#${workItemNumber}(?!\\s+-\\s+\\S)`, 'gi');
+      const replacement = `AB#${workItemNumber} - ${workItemInfo.title}`;
+      const newBody = updatedBody.replace(barePattern, replacement);
+
+      if (newBody !== updatedBody) {
+        updatedBody = newBody;
+        hasChanges = true;
+        core.info(`Appended title to AB#${workItemNumber}: "${workItemInfo.title}"`);
+        core.summary.addRaw(
+          `- 📝 **Annotated:** AB#${workItemNumber} - ${workItemInfo.title} (${workItemInfo.type})\n`
+        );
+      }
+    }
+  }
+
+  if (hasChanges) {
+    core.info('Updating PR body with work item titles...');
+    await octokit.rest.pulls.update({
+      owner,
+      repo,
+      pull_number: pullNumber,
+      body: updatedBody
+    });
+    core.info('... PR body updated successfully');
+  } else {
+    core.info('No changes needed for PR body (all work items already annotated or no titles found)');
+  }
 }
 
 /**
