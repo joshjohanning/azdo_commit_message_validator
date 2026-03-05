@@ -7,7 +7,7 @@ branding:
 
 inputs:
   check-pull-request:
-    description: 'Check the pull request body and title for AB#xxx'
+    description: 'Check the pull request for AB#xxx (scope configurable via pull-request-check-scope)'
     required: true
     default: 'false'
   pull-request-check-scope:

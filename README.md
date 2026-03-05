@@ -65,7 +65,7 @@ jobs:
 
 | Name                                   | Description                                                                                                                                       | Required | Default               |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
-| `check-pull-request`                   | Check the pull request body and title for `AB#xxx`                                                                                                | `true`   | `true`                |
+| `check-pull-request`                   | Check the pull request for `AB#xxx` (scope configurable via `pull-request-check-scope`)                                                           | `true`   | `false`               |
 | `pull-request-check-scope`             | Only if `check-pull-request=true`, where to look for `AB#` in the PR: `title-or-body`, `body-only`, or `title-only`                               | `false`  | `title-or-body`       |
 | `check-commits`                        | Check each commit in the pull request for `AB#xxx`                                                                                                | `true`   | `true`                |
 | `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message                              | `false`  | `true`                |

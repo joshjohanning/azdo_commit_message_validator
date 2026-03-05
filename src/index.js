@@ -429,7 +429,7 @@ async function checkCommitsForWorkItems(
  * @param {string} azureDevopsToken - Azure DevOps PAT token
  * @param {Map} workItemToCommitMap - Map of work item IDs to commit info from checkCommitsForWorkItems
  * @param {string} pullRequestCheckScope - Where to look for AB# in the PR: 'title-or-body', 'body-only', or 'title-only'
- * @returns {Array} Returns array of invalid work item IDs found in PR title/body
+ * @returns {Array} Returns array of invalid work item IDs found in the PR based on pullRequestCheckScope
  */
 async function checkPullRequestForWorkItems(
   octokit,
