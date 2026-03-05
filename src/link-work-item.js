@@ -182,7 +182,7 @@ export async function getWorkItemTitle(devOpsOrg, azToken, workItemId) {
     const azWebApi = new azdev.WebApi(orgUrl, authHandler);
     const azWorkApi = await azWebApi.getWorkItemTrackingApi();
 
-    const workItem = await azWorkApi.getWorkItem(parseInt(workItemId));
+    const workItem = await azWorkApi.getWorkItem(parseInt(workItemId, 10));
 
     if (workItem && workItem.fields) {
       const title = workItem.fields['System.Title'] || '';
@@ -194,7 +194,9 @@ export async function getWorkItemTitle(devOpsOrg, azToken, workItemId) {
     core.warning(`... work item ${workItemId} not found`);
     return null;
   } catch (error) {
-    core.warning(`... failed to fetch work item ${workItemId} title: ${error.message}`);
+    core.warning(
+      `... failed to fetch work item ${workItemId} title: ${error instanceof Error ? error.message : String(error)}`
+    );
     return null;
   }
 }

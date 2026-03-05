@@ -536,36 +536,20 @@ async function checkPullRequestForWorkItems(
             core.summary.addRaw(`- ✔️ **Verified:** Work item AB#${workItemNumber} found in PR title/body\n`);
           }
         }
+      } else {
+        // Validation disabled - add job summary for each work item (only if not already added from commits)
+        for (const workItem of uniqueWorkItems) {
+          const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
 
-        // Append work item titles to PR body if enabled
-        if (appendWorkItemTitle) {
-          await appendWorkItemTitlesToPRBody(
-            octokit,
-            context,
-            pullNumber,
-            pullBody,
-            uniqueWorkItems,
-            azureDevopsOrganization,
-            azureDevopsToken
-          );
-        }
-
-        // All work items valid - return empty array
-        return [];
-      }
-
-      // Validation disabled - add job summary for each work item (only if not already added from commits)
-      for (const workItem of uniqueWorkItems) {
-        const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
-
-        // Only add to map and summary if this work item wasn't already added from a commit
-        if (!workItemToCommitMap.has(workItemNumber)) {
-          workItemToCommitMap.set(workItemNumber, null); // null indicates it's from PR title/body
-          core.summary.addRaw(`- ✔️ **Verified:** Work item AB#${workItemNumber} found in PR title/body\n`);
+          // Only add to map and summary if this work item wasn't already added from a commit
+          if (!workItemToCommitMap.has(workItemNumber)) {
+            workItemToCommitMap.set(workItemNumber, null); // null indicates it's from PR title/body
+            core.summary.addRaw(`- ✔️ **Verified:** Work item AB#${workItemNumber} found in PR title/body\n`);
+          }
         }
       }
 
-      // Append work item titles to PR body if enabled (even when validation is disabled)
+      // Append work item titles to PR body if enabled
       if (appendWorkItemTitle && azureDevopsOrganization && azureDevopsToken) {
         await appendWorkItemTitlesToPRBody(
           octokit,
@@ -578,7 +562,6 @@ async function checkPullRequestForWorkItems(
         );
       }
 
-      // Validation disabled - return empty array
       return [];
     }
   }
@@ -617,7 +600,7 @@ async function appendWorkItemTitlesToPRBody(
     const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
 
     // Skip if this AB# reference already has a title appended (AB#123 - ...)
-    const alreadyAnnotatedPattern = new RegExp(`AB#${workItemNumber}\\s+-\\s+\\S`, 'i');
+    const alreadyAnnotatedPattern = new RegExp(`AB#${workItemNumber}(?!\\d)\\s+-\\s+\\S`, 'i');
     if (alreadyAnnotatedPattern.test(updatedBody)) {
       core.info(`Work item AB#${workItemNumber} already has title appended in PR body, skipping`);
       continue;
@@ -626,9 +609,9 @@ async function appendWorkItemTitlesToPRBody(
     const workItemInfo = await getWorkItemTitle(azureDevopsOrganization, azureDevopsToken, workItemNumber);
     if (workItemInfo && workItemInfo.title) {
       // Replace bare AB#123 with AB#123 - Title (only where not already annotated)
-      const barePattern = new RegExp(`AB#${workItemNumber}(?!\\s+-\\s+\\S)`, 'gi');
+      const barePattern = new RegExp(`AB#${workItemNumber}(?!\\d)(?!\\s+-\\s+\\S)`, 'gi');
       const replacement = `AB#${workItemNumber} - ${workItemInfo.title}`;
-      const newBody = updatedBody.replace(barePattern, replacement);
+      const newBody = updatedBody.replace(barePattern, () => replacement);
 
       if (newBody !== updatedBody) {
         updatedBody = newBody;
