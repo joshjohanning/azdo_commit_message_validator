@@ -48,6 +48,10 @@ inputs:
     description: 'Append the work item title to AB#xxx references in the PR body (e.g. AB#123 becomes AB#123 - Fix bug). Requires azure-devops-token and azure-devops-organization to be set.'
     required: false
     default: 'false'
+  add-ab-tag-from-branch:
+    description: 'Automatically extract work item ID(s) from the head branch name and add AB#xxx to the PR body if not already present (e.g. branch task/12345/fix-bug adds AB#12345 to the PR body)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'node20'

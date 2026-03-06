@@ -15,6 +15,9 @@ import { run as linkWorkItem, validateWorkItemExists, getWorkItemTitle } from '.
 /** Regex pattern to match Azure DevOps work item references (AB#123) */
 const AB_PATTERN = /AB#[0-9]+/gi;
 
+/** Regex pattern to extract work item IDs from branch names (digit sequences preceded by start or separator) */
+const BRANCH_WORK_ITEM_PATTERN = /(?:^|[/\-_])(\d+)/g;
+
 /** HTML comment markers for identifying different validation scenarios */
 export const COMMENT_MARKERS = {
   COMMITS_NOT_LINKED: '<!-- AZDO-VALIDATOR: COMMITS-NOT-LINKED -->',
@@ -44,6 +47,7 @@ export async function run() {
     const commentOnFailure = core.getInput('comment-on-failure') === 'true';
     const validateWorkItemExistsFlag = core.getInput('validate-work-item-exists') === 'true';
     const appendWorkItemTitle = core.getInput('append-work-item-title') === 'true';
+    const addAbTagFromBranch = core.getInput('add-ab-tag-from-branch') === 'true';
 
     // Warn if an invalid scope value was provided
     if (checkPullRequest && pullRequestCheckScopeRaw && !validScopes.includes(pullRequestCheckScopeRaw)) {
@@ -88,6 +92,11 @@ export async function run() {
     }
 
     const octokit = github.getOctokit(githubToken);
+
+    // Automatically add AB# tags from branch name if enabled
+    if (addAbTagFromBranch) {
+      await addWorkItemsToPRBody(octokit, context, pullNumber);
+    }
 
     // Store work item to commit mapping and validation results
     let workItemToCommitMap = new Map();
@@ -672,6 +681,85 @@ async function appendWorkItemTitlesToPRBody(
   } else {
     core.info('No changes needed for PR body (all work items already annotated or no titles found)');
   }
+}
+
+/**
+ * Extract work item IDs from a branch name
+ * Matches digit sequences preceded by start of string or separators (/, -, _)
+ *
+ * @param {string} branchName - The branch name to extract work item IDs from
+ * @returns {string[]} Array of unique work item ID strings (e.g. ['12345', '67890'])
+ */
+export function extractWorkItemIdsFromBranch(branchName) {
+  if (!branchName) return [];
+
+  const ids = [];
+  let match;
+  // Reset lastIndex since we're using a global regex
+  BRANCH_WORK_ITEM_PATTERN.lastIndex = 0;
+  while ((match = BRANCH_WORK_ITEM_PATTERN.exec(branchName)) !== null) {
+    ids.push(match[1]);
+  }
+
+  // Return unique IDs only
+  return [...new Set(ids)];
+}
+
+/**
+ * Add AB# work item tags to the PR body based on work item IDs found in the branch name.
+ * Skips IDs that are already referenced in the PR body.
+ *
+ * @param {Object} octokit - GitHub API client
+ * @param {Object} context - GitHub Actions context
+ * @param {number} pullNumber - Pull request number
+ */
+async function addWorkItemsToPRBody(octokit, context, pullNumber) {
+  const { owner, repo } = context.repo;
+  const branchName = context.payload.pull_request?.head?.ref || '';
+
+  core.info(`Extracting work item IDs from branch name: ${branchName}`);
+  const workItemIds = extractWorkItemIdsFromBranch(branchName);
+
+  if (workItemIds.length === 0) {
+    core.info('No work item IDs found in branch name');
+    return;
+  }
+
+  core.info(`Found work item ID(s) in branch: ${workItemIds.join(', ')}`);
+
+  // Get current PR body
+  const pullRequest = await octokit.rest.pulls.get({
+    owner,
+    repo,
+    pull_number: pullNumber
+  });
+
+  const currentBody = pullRequest.data.body || '';
+
+  // Filter to only IDs not already in the PR body
+  const missingIds = workItemIds.filter(id => {
+    const pattern = new RegExp(`AB#${id}(?!\\d)`, 'i');
+    return !pattern.test(currentBody);
+  });
+
+  if (missingIds.length === 0) {
+    core.info('All work item IDs from branch are already in the PR body');
+    return;
+  }
+
+  // Build the AB# tags to add
+  const abTags = missingIds.map(id => `AB#${id}`).join(' ');
+  const updatedBody = currentBody ? `${currentBody}\n\n${abTags}` : abTags;
+
+  core.info(`Adding work item tag(s) to PR body: ${abTags}`);
+  await octokit.rest.pulls.update({
+    owner,
+    repo,
+    pull_number: pullNumber,
+    body: updatedBody
+  });
+  core.info('PR body updated with work item tag(s) from branch name');
+  core.summary.addRaw(`- :link: **Added from branch:** ${abTags} extracted from branch \`${branchName}\`\n`);
 }
 
 /**

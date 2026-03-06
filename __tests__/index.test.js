@@ -58,6 +58,7 @@ describe('Azure DevOps Commit Validator', () => {
   let mockOctokit;
   let run;
   let COMMENT_MARKERS;
+  let extractWorkItemIdsFromBranch;
 
   beforeAll(async () => {
     // Set NODE_ENV to test to prevent auto-execution
@@ -67,6 +68,7 @@ describe('Azure DevOps Commit Validator', () => {
     const indexModule = await import('../src/index.js');
     run = indexModule.run;
     COMMENT_MARKERS = indexModule.COMMENT_MARKERS;
+    extractWorkItemIdsFromBranch = indexModule.extractWorkItemIdsFromBranch;
   });
 
   beforeEach(() => {
@@ -90,7 +92,8 @@ describe('Azure DevOps Commit Validator', () => {
         'github-token': 'github-token',
         'comment-on-failure': 'true',
         'validate-work-item-exists': 'false',
-        'append-work-item-title': 'false'
+        'append-work-item-title': 'false',
+        'add-ab-tag-from-branch': 'false'
       };
       return defaults[name] || '';
     });
@@ -125,7 +128,7 @@ describe('Azure DevOps Commit Validator', () => {
     };
 
     mockGetOctokit.mockReturnValue(mockOctokit);
-    mockContext.payload.pull_request = { number: 42 };
+    mockContext.payload.pull_request = { number: 42, head: { ref: 'feature/test-branch' } };
 
     // Default mock for validateWorkItemExists (returns true by default)
     mockValidateWorkItemExists.mockResolvedValue(true);
@@ -2188,6 +2191,293 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockSetFailed).toHaveBeenCalledWith(
         expect.stringContaining('GITHUB_TOKEN does not have sufficient permissions')
       );
+    });
+  });
+
+  describe('extractWorkItemIdsFromBranch', () => {
+    it('should extract work item ID from task/12345/make-it-better', () => {
+      expect(extractWorkItemIdsFromBranch('task/12345/make-it-better')).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from task/12345-make-it-better', () => {
+      expect(extractWorkItemIdsFromBranch('task/12345-make-it-better')).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from task/12345', () => {
+      expect(extractWorkItemIdsFromBranch('task/12345')).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from task-12345', () => {
+      expect(extractWorkItemIdsFromBranch('task-12345')).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from 12345-make-it-better', () => {
+      expect(extractWorkItemIdsFromBranch('12345-make-it-better')).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from 12345make-it-better', () => {
+      expect(extractWorkItemIdsFromBranch('12345make-it-better')).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from 12345', () => {
+      expect(extractWorkItemIdsFromBranch('12345')).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from feature_12345_description', () => {
+      expect(extractWorkItemIdsFromBranch('feature_12345_description')).toEqual(['12345']);
+    });
+
+    it('should return unique IDs when branch contains duplicates', () => {
+      expect(extractWorkItemIdsFromBranch('fix/12345/12345-again')).toEqual(['12345']);
+    });
+
+    it('should extract multiple different work item IDs', () => {
+      expect(extractWorkItemIdsFromBranch('fix/12345/67890-combined')).toEqual(['12345', '67890']);
+    });
+
+    it('should return empty array for branch with no numbers', () => {
+      expect(extractWorkItemIdsFromBranch('feature/add-new-stuff')).toEqual([]);
+    });
+
+    it('should return empty array for null/empty input', () => {
+      expect(extractWorkItemIdsFromBranch('')).toEqual([]);
+      expect(extractWorkItemIdsFromBranch(null)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch(undefined)).toEqual([]);
+    });
+  });
+
+  describe('Add AB# tag from branch', () => {
+    it('should add AB# tag to PR body when work item found in branch name', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/make-it-better' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'append-work-item-title': 'false',
+          'add-ab-tag-from-branch': 'true',
+          'github-token': 'github-token',
+          'azure-devops-token': '',
+          'azure-devops-organization': ''
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Some description' }
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('AB#12345')
+        })
+      );
+    });
+
+    it('should not add AB# tag when it already exists in PR body', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/make-it-better' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'append-work-item-title': 'false',
+          'add-ab-tag-from-branch': 'true',
+          'github-token': 'github-token',
+          'azure-devops-token': '',
+          'azure-devops-organization': ''
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Fix AB#12345 bug' }
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should NOT call update since AB#12345 is already in the body
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+    });
+
+    it('should not update PR when no work item IDs found in branch', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'feature/add-new-stuff' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'append-work-item-title': 'false',
+          'add-ab-tag-from-branch': 'true',
+          'github-token': 'github-token',
+          'azure-devops-token': '',
+          'azure-devops-organization': ''
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should NOT call pulls.get or pulls.update since no IDs found
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+    });
+
+    it('should not run when add-ab-tag-from-branch is false', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/make-it-better' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'append-work-item-title': 'false',
+          'add-ab-tag-from-branch': 'false',
+          'github-token': 'github-token',
+          'azure-devops-token': '',
+          'azure-devops-organization': ''
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should NOT call pulls.update since feature is disabled
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+    });
+
+    it('should handle empty PR body when adding AB# tag', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/fix' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'append-work-item-title': 'false',
+          'add-ab-tag-from-branch': 'true',
+          'github-token': 'github-token',
+          'azure-devops-token': '',
+          'azure-devops-organization': ''
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: '' }
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should set body to just the AB# tag (no leading newlines)
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: 'AB#12345'
+        })
+      );
+    });
+
+    it('should add multiple AB# tags from branch with multiple IDs', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'fix/12345/67890-combined' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'append-work-item-title': 'false',
+          'add-ab-tag-from-branch': 'true',
+          'github-token': 'github-token',
+          'azure-devops-token': '',
+          'azure-devops-organization': ''
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Description' }
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('AB#12345')
+        })
+      );
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('AB#67890')
+        })
+      );
+    });
+
+    it('should only add missing AB# tags when some already exist in body', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'fix/12345/67890-combined' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'append-work-item-title': 'false',
+          'add-ab-tag-from-branch': 'true',
+          'github-token': 'github-token',
+          'azure-devops-token': '',
+          'azure-devops-organization': ''
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Fixes AB#12345' }
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should only add AB#67890 since AB#12345 already exists
+      const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
+      expect(updateCall.body).toContain('AB#67890');
+      expect(updateCall.body).toContain('Fixes AB#12345'); // original body preserved
     });
   });
 });
