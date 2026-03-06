@@ -93,7 +93,7 @@ describe('Azure DevOps Commit Validator', () => {
         'comment-on-failure': 'true',
         'validate-work-item-exists': 'false',
         'append-work-item-title': 'false',
-        'add-ab-tag-from-branch': 'false'
+        'add-work-item-from-branch': 'false'
       };
       return defaults[name] || '';
     });
@@ -2259,7 +2259,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'append-work-item-title': 'false',
-          'add-ab-tag-from-branch': 'true',
+          'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
           'azure-devops-token': '',
           'azure-devops-organization': ''
@@ -2294,7 +2294,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'append-work-item-title': 'false',
-          'add-ab-tag-from-branch': 'true',
+          'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
           'azure-devops-token': '',
           'azure-devops-organization': ''
@@ -2326,7 +2326,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'append-work-item-title': 'false',
-          'add-ab-tag-from-branch': 'true',
+          'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
           'azure-devops-token': '',
           'azure-devops-organization': ''
@@ -2342,7 +2342,7 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
     });
 
-    it('should not run when add-ab-tag-from-branch is false', async () => {
+    it('should not run when add-work-item-from-branch is false', async () => {
       mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/make-it-better' } };
 
       mockGetInput.mockImplementation(name => {
@@ -2354,7 +2354,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'append-work-item-title': 'false',
-          'add-ab-tag-from-branch': 'false',
+          'add-work-item-from-branch': 'false',
           'github-token': 'github-token',
           'azure-devops-token': '',
           'azure-devops-organization': ''
@@ -2382,7 +2382,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'append-work-item-title': 'false',
-          'add-ab-tag-from-branch': 'true',
+          'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
           'azure-devops-token': '',
           'azure-devops-organization': ''
@@ -2418,7 +2418,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'append-work-item-title': 'false',
-          'add-ab-tag-from-branch': 'true',
+          'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
           'azure-devops-token': '',
           'azure-devops-organization': ''
@@ -2458,7 +2458,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'append-work-item-title': 'false',
-          'add-ab-tag-from-branch': 'true',
+          'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
           'azure-devops-token': '',
           'azure-devops-organization': ''

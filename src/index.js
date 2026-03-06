@@ -47,7 +47,7 @@ export async function run() {
     const commentOnFailure = core.getInput('comment-on-failure') === 'true';
     const validateWorkItemExistsFlag = core.getInput('validate-work-item-exists') === 'true';
     const appendWorkItemTitle = core.getInput('append-work-item-title') === 'true';
-    const addAbTagFromBranch = core.getInput('add-ab-tag-from-branch') === 'true';
+    const addWorkItemFromBranch = core.getInput('add-work-item-from-branch') === 'true';
 
     // Warn if an invalid scope value was provided
     if (checkPullRequest && pullRequestCheckScopeRaw && !validScopes.includes(pullRequestCheckScopeRaw)) {
@@ -94,7 +94,7 @@ export async function run() {
     const octokit = github.getOctokit(githubToken);
 
     // Automatically add AB# tags from branch name if enabled
-    if (addAbTagFromBranch) {
+    if (addWorkItemFromBranch) {
       await addWorkItemsToPRBody(octokit, context, pullNumber);
     }
 
