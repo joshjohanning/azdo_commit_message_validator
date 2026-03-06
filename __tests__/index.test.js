@@ -9,6 +9,7 @@ const mockGetInput = jest.fn();
 const mockSetFailed = jest.fn();
 const mockInfo = jest.fn();
 const mockError = jest.fn();
+const mockWarning = jest.fn();
 const mockSummary = {
   addRaw: jest.fn().mockReturnThis(),
   write: jest.fn().mockResolvedValue(undefined)
@@ -19,6 +20,7 @@ jest.unstable_mockModule('@actions/core', () => ({
   setFailed: mockSetFailed,
   info: mockInfo,
   error: mockError,
+  warning: mockWarning,
   summary: mockSummary
 }));
 
@@ -79,6 +81,7 @@ describe('Azure DevOps Commit Validator', () => {
     mockGetInput.mockImplementation(name => {
       const defaults = {
         'check-pull-request': 'false',
+        'pull-request-check-scope': 'title-or-body',
         'check-commits': 'true',
         'fail-if-missing-workitem-commit-link': 'true',
         'link-commits-to-pull-request': 'false',
@@ -638,6 +641,171 @@ describe('Azure DevOps Commit Validator', () => {
       // Work item AB#12345 should be in the summary from commit (where it was found first)
       const summaryCallArg = mockSummary.addRaw.mock.calls.find(call => call[0].includes('AB#12345'));
       expect(summaryCallArg).toBeDefined();
+    });
+  });
+
+  describe('Pull request check scope', () => {
+    it('should pass with body-only scope when work item is in body', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'pull-request-check-scope') return 'body-only';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'This PR implements AB#12345'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should fail with body-only scope when work item is only in title', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'pull-request-check-scope') return 'body-only';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature AB#12345',
+          body: 'This is a test PR'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+    });
+
+    it('should pass with title-only scope when work item is in title', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'pull-request-check-scope') return 'title-only';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature AB#12345',
+          body: 'This is a test PR'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should fail with title-only scope when work item is only in body', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'pull-request-check-scope') return 'title-only';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'This PR implements AB#12345'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+    });
+
+    it('should pass with title-or-body scope (default) when work item is in either', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'pull-request-check-scope') return 'title-or-body';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature AB#12345',
+          body: 'This is a test PR'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should warn and use default scope with invalid pull-request-check-scope value', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'pull-request-check-scope') return 'invalid-value';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature AB#12345',
+          body: 'Test body'
+        }
+      });
+
+      await run();
+
+      expect(mockWarning).toHaveBeenCalledWith(
+        expect.stringContaining("Invalid value 'invalid-value' for 'pull-request-check-scope'")
+      );
+      // Should still pass because it falls back to title-or-body and title has AB#
+      expect(mockSetFailed).not.toHaveBeenCalled();
+    });
+
+    it('should include scope-aware message in failure comment with body-only scope', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'pull-request-check-scope') return 'body-only';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'true';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature AB#12345',
+          body: 'This is a test PR without work item in body'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalled();
+      expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('Please update the body to include a work item')
+        })
+      );
     });
   });
 
