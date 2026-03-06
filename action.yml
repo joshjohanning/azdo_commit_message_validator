@@ -49,7 +49,7 @@ inputs:
     required: false
     default: 'false'
   add-work-item-from-branch:
-    description: 'Automatically extract work item ID(s) from the head branch name and add AB#xxx to the PR body if not already present (e.g. branch task/12345/fix-bug adds AB#12345 to the PR body)'
+    description: 'Automatically extract work item ID(s) from the head branch name and add AB#xxx to the PR body if not already present (e.g. branch task/12345/fix-bug adds AB#12345 to the PR body). Best used with check-pull-request=true.'
     required: false
     default: 'false'
 
