@@ -7,9 +7,13 @@ branding:
 
 inputs:
   check-pull-request:
-    description: 'Check the pull request body and title for AB#xxx'
+    description: 'Check the pull request for AB#xxx (scope configurable via pull-request-check-scope)'
     required: true
     default: 'false'
+  pull-request-check-scope:
+    description: 'Only if check-pull-request=true, where to look for AB# in the pull request. Options: title-or-body, body-only, title-only'
+    required: false
+    default: 'title-or-body'
   check-commits:
     description: 'Check each commit in the pull request for AB#xxx'
     required: true
