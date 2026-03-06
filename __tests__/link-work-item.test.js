@@ -284,4 +284,63 @@ describe('Azure DevOps Work Item Linker', () => {
       expect(mockGetWorkItem).toHaveBeenCalledWith(12345);
     });
   });
+
+  describe('getWorkItemTitle', () => {
+    it('should return title and type when work item exists', async () => {
+      mockGetWorkItem.mockResolvedValue({
+        id: 12345,
+        fields: {
+          'System.Title': 'Fix login bug',
+          'System.WorkItemType': 'Bug'
+        }
+      });
+
+      const { getWorkItemTitle } = await import('../src/link-work-item.js');
+      const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
+
+      expect(result).toEqual({ title: 'Fix login bug', type: 'Bug' });
+      expect(mockGetWorkItem).toHaveBeenCalledWith(12345);
+    });
+
+    it('should return null when work item is not found', async () => {
+      mockGetWorkItem.mockResolvedValue(null);
+
+      const { getWorkItemTitle } = await import('../src/link-work-item.js');
+      const result = await getWorkItemTitle('test-org', 'azdo-token', '99999');
+
+      expect(result).toBeNull();
+      expect(mockWarning).toHaveBeenCalled();
+    });
+
+    it('should return null when work item has no fields', async () => {
+      mockGetWorkItem.mockResolvedValue({ id: 12345 });
+
+      const { getWorkItemTitle } = await import('../src/link-work-item.js');
+      const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null and warn on API error', async () => {
+      mockGetWorkItem.mockRejectedValue(new Error('Network error'));
+
+      const { getWorkItemTitle } = await import('../src/link-work-item.js');
+      const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
+
+      expect(result).toBeNull();
+      expect(mockWarning).toHaveBeenCalledWith(expect.stringContaining('failed to fetch work item 12345 title'));
+    });
+
+    it('should handle missing title and type fields gracefully', async () => {
+      mockGetWorkItem.mockResolvedValue({
+        id: 12345,
+        fields: {}
+      });
+
+      const { getWorkItemTitle } = await import('../src/link-work-item.js');
+      const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
+
+      expect(result).toEqual({ title: '', type: '' });
+    });
+  });
 });

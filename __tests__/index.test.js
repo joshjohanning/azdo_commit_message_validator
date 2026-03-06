@@ -47,9 +47,11 @@ jest.unstable_mockModule('@actions/github', () => ({
 // Mock ./link-work-item.js
 const mockLinkWorkItem = jest.fn();
 const mockValidateWorkItemExists = jest.fn();
+const mockGetWorkItemTitle = jest.fn();
 jest.unstable_mockModule('../src/link-work-item.js', () => ({
   run: mockLinkWorkItem,
-  validateWorkItemExists: mockValidateWorkItemExists
+  validateWorkItemExists: mockValidateWorkItemExists,
+  getWorkItemTitle: mockGetWorkItemTitle
 }));
 
 describe('Azure DevOps Commit Validator', () => {
@@ -87,7 +89,8 @@ describe('Azure DevOps Commit Validator', () => {
         'azure-devops-organization': '',
         'github-token': 'github-token',
         'comment-on-failure': 'true',
-        'validate-work-item-exists': 'false'
+        'validate-work-item-exists': 'false',
+        'append-work-item-title': 'false'
       };
       return defaults[name] || '';
     });
@@ -105,7 +108,8 @@ describe('Azure DevOps Commit Validator', () => {
           }),
           listComments: jest.fn().mockResolvedValue({ data: [] }),
           createComment: jest.fn().mockResolvedValue({ data: { id: 123 } }),
-          updateComment: jest.fn().mockResolvedValue({ data: { id: 123 } })
+          updateComment: jest.fn().mockResolvedValue({ data: { id: 123 } }),
+          update: jest.fn().mockResolvedValue({ data: {} })
         },
         issues: {
           createComment: jest.fn().mockResolvedValue({ data: { id: 123 } }),
@@ -125,6 +129,9 @@ describe('Azure DevOps Commit Validator', () => {
 
     // Default mock for validateWorkItemExists (returns true by default)
     mockValidateWorkItemExists.mockResolvedValue(true);
+
+    // Default mock for getWorkItemTitle
+    mockGetWorkItemTitle.mockResolvedValue({ title: 'Test Work Item', type: 'User Story' });
   });
 
   describe('Input validation', () => {
@@ -797,6 +804,209 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledWith(
         expect.objectContaining({
           body: expect.stringContaining('Please update the body to include a work item')
+        })
+      );
+    });
+  });
+
+  describe('Append work item title', () => {
+    it('should append work item title to AB# in PR body when enabled', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        if (name === 'validate-work-item-exists') return 'false';
+        if (name === 'append-work-item-title') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'my-org';
+        return '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'This PR implements AB#12345'
+        }
+      });
+
+      mockGetWorkItemTitle.mockResolvedValue({ title: 'Fix login bug', type: 'Bug' });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockGetWorkItemTitle).toHaveBeenCalledWith('my-org', 'azdo-token', '12345');
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: 'This PR implements AB#12345 - Fix login bug'
+        })
+      );
+    });
+
+    it('should not update PR body when work item already has title appended', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        if (name === 'validate-work-item-exists') return 'false';
+        if (name === 'append-work-item-title') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'my-org';
+        return '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'This PR implements AB#12345 - Fix login bug'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockGetWorkItemTitle).not.toHaveBeenCalled();
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+    });
+
+    it('should not append when append-work-item-title is false', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        if (name === 'validate-work-item-exists') return 'false';
+        if (name === 'append-work-item-title') return 'false';
+        return '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'This PR implements AB#12345'
+        }
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockGetWorkItemTitle).not.toHaveBeenCalled();
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+    });
+
+    it('should handle multiple work items in PR body', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        if (name === 'validate-work-item-exists') return 'false';
+        if (name === 'append-work-item-title') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'my-org';
+        return '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'This PR implements AB#111 and AB#222'
+        }
+      });
+
+      mockGetWorkItemTitle
+        .mockResolvedValueOnce({ title: 'First item', type: 'User Story' })
+        .mockResolvedValueOnce({ title: 'Second item', type: 'Bug' });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockGetWorkItemTitle).toHaveBeenCalledTimes(2);
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: 'This PR implements AB#111 - First item and AB#222 - Second item'
+        })
+      );
+    });
+
+    it('should gracefully handle when getWorkItemTitle returns null', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        if (name === 'validate-work-item-exists') return 'false';
+        if (name === 'append-work-item-title') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'my-org';
+        return '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'This PR implements AB#12345'
+        }
+      });
+
+      mockGetWorkItemTitle.mockResolvedValue(null);
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+    });
+
+    it('should require azure-devops-token and azure-devops-organization when enabled', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        if (name === 'validate-work-item-exists') return 'false';
+        if (name === 'append-work-item-title') return 'true';
+        if (name === 'azure-devops-token') return '';
+        if (name === 'azure-devops-organization') return '';
+        return '';
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('append-work-item-title'));
+    });
+
+    it('should append title with validate-work-item-exists also enabled', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        if (name === 'validate-work-item-exists') return 'true';
+        if (name === 'append-work-item-title') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'my-org';
+        return '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'This PR implements AB#12345'
+        }
+      });
+
+      mockValidateWorkItemExists.mockResolvedValue(true);
+      mockGetWorkItemTitle.mockResolvedValue({ title: 'Fix login bug', type: 'Bug' });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockValidateWorkItemExists).toHaveBeenCalled();
+      expect(mockGetWorkItemTitle).toHaveBeenCalledWith('my-org', 'azdo-token', '12345');
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: 'This PR implements AB#12345 - Fix login bug'
         })
       );
     });

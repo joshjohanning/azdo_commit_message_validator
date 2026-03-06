@@ -150,7 +150,7 @@ export async function validateWorkItemExists(devOpsOrg, azToken, workItemId) {
     const azWebApi = new azdev.WebApi(orgUrl, authHandler);
     const azWorkApi = await azWebApi.getWorkItemTrackingApi();
 
-    const workItem = await azWorkApi.getWorkItem(parseInt(workItemId));
+    const workItem = await azWorkApi.getWorkItem(parseInt(workItemId, 10));
 
     if (workItem && workItem.id) {
       core.info(`... work item ${workItemId} exists`);
@@ -161,7 +161,42 @@ export async function validateWorkItemExists(devOpsOrg, azToken, workItemId) {
     return false;
   } catch (error) {
     // 404 or other errors mean work item doesn't exist
-    core.warning(`... work item ${workItemId} not found: ${error.message}`);
+    core.warning(`... work item ${workItemId} not found: ${error instanceof Error ? error.message : String(error)}`);
     return false;
+  }
+}
+
+/**
+ * Get the title and type of a work item from Azure DevOps
+ *
+ * @param {string} devOpsOrg - Azure DevOps organization name
+ * @param {string} azToken - Azure DevOps PAT token
+ * @param {string} workItemId - Work item ID to fetch
+ * @returns {Promise<{title: string, type: string}|null>} - Work item title and type, or null if not found
+ */
+export async function getWorkItemTitle(devOpsOrg, azToken, workItemId) {
+  try {
+    core.info(`Fetching work item ${workItemId} title...`);
+    const orgUrl = `https://dev.azure.com/${devOpsOrg}`;
+    const authHandler = azdev.getPersonalAccessTokenHandler(azToken);
+    const azWebApi = new azdev.WebApi(orgUrl, authHandler);
+    const azWorkApi = await azWebApi.getWorkItemTrackingApi();
+
+    const workItem = await azWorkApi.getWorkItem(parseInt(workItemId, 10));
+
+    if (workItem && workItem.fields) {
+      const title = workItem.fields['System.Title'] || '';
+      const type = workItem.fields['System.WorkItemType'] || '';
+      core.info(`... work item ${workItemId}: [${type}] ${title}`);
+      return { title, type };
+    }
+
+    core.warning(`... work item ${workItemId} not found`);
+    return null;
+  } catch (error) {
+    core.warning(
+      `... failed to fetch work item ${workItemId} title: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return null;
   }
 }
