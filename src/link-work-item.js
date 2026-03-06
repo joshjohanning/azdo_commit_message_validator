@@ -150,7 +150,7 @@ export async function validateWorkItemExists(devOpsOrg, azToken, workItemId) {
     const azWebApi = new azdev.WebApi(orgUrl, authHandler);
     const azWorkApi = await azWebApi.getWorkItemTrackingApi();
 
-    const workItem = await azWorkApi.getWorkItem(parseInt(workItemId));
+    const workItem = await azWorkApi.getWorkItem(parseInt(workItemId, 10));
 
     if (workItem && workItem.id) {
       core.info(`... work item ${workItemId} exists`);
@@ -161,7 +161,7 @@ export async function validateWorkItemExists(devOpsOrg, azToken, workItemId) {
     return false;
   } catch (error) {
     // 404 or other errors mean work item doesn't exist
-    core.warning(`... work item ${workItemId} not found: ${error.message}`);
+    core.warning(`... work item ${workItemId} not found: ${error instanceof Error ? error.message : String(error)}`);
     return false;
   }
 }
