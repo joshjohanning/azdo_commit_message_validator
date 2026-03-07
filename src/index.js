@@ -15,8 +15,8 @@ import { run as linkWorkItem, validateWorkItemExists, getWorkItemTitle } from '.
 /** Regex pattern to match Azure DevOps work item references (AB#123) */
 const AB_PATTERN = /AB#[0-9]+/gi;
 
-/** Regex pattern to extract work item IDs from branch names (digit sequences preceded by start or separator) */
-const BRANCH_WORK_ITEM_PATTERN = /(?:^|[/\-_])(\d+)/g;
+/** Regex pattern to extract work item IDs from branch names (3+ digit sequences preceded by start or separator) */
+const BRANCH_WORK_ITEM_PATTERN = /(?:^|[/\-_])(\d{3,})/g;
 
 /** HTML comment markers for identifying different validation scenarios */
 export const COMMENT_MARKERS = {

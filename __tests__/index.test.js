@@ -2244,6 +2244,20 @@ describe('Azure DevOps Commit Validator', () => {
       expect(extractWorkItemIdsFromBranch(null)).toEqual([]);
       expect(extractWorkItemIdsFromBranch(undefined)).toEqual([]);
     });
+
+    it('should ignore short numbers to avoid false positives from version numbers', () => {
+      expect(extractWorkItemIdsFromBranch('feature-v2-add-logging')).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('release-1-2-3')).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('hotfix/v3')).toEqual([]);
+    });
+
+    it('should match exactly 3 digit IDs', () => {
+      expect(extractWorkItemIdsFromBranch('task/123/fix')).toEqual(['123']);
+    });
+
+    it('should ignore 2-digit numbers but match longer ones in same branch', () => {
+      expect(extractWorkItemIdsFromBranch('hotfix/2024-bugfix')).toEqual(['2024']);
+    });
   });
 
   describe('Add AB# tag from branch', () => {
