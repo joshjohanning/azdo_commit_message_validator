@@ -45,7 +45,11 @@ inputs:
     required: false
     default: 'true'
   append-work-item-title:
-    description: 'Append the work item title to AB#xxx references in the PR body (e.g. AB#123 becomes AB#123 - Fix bug). Requires azure-devops-token and azure-devops-organization to be set.'
+    description: 'Deprecated: Use add-work-item-table instead. This input will be removed in a future major version.'
+    required: false
+    default: 'false'
+  add-work-item-table:
+    description: 'Add a Linked Work Items table to the PR body showing titles for AB#xxx references (original AB# references are preserved). Requires azure-devops-token and azure-devops-organization to be set.'
     required: false
     default: 'false'
 
