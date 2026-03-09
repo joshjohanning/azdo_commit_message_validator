@@ -655,7 +655,16 @@ async function appendWorkItemTitlesToPRBody(
   }
 
   // Build the work items section
-  const tableRows = workItemInfos.map(info => `| AB#${info.id} | ${info.type} | ${info.title} |`).join('\n');
+  // Avoid using AB# in the table text -- the azure-boards bot detects AB#
+  // references even inside markdown links and adds duplicate Development
+  // section entries. Use just the work item number as the link text.
+  const devOpsBaseUrl = `https://dev.azure.com/${azureDevopsOrganization}`;
+  const tableRows = workItemInfos
+    .map(info => {
+      const workItemUrl = `${devOpsBaseUrl}/_workitems/edit/${info.id}`;
+      return `| [${info.id}](${workItemUrl}) | ${info.type} | ${info.title} |`;
+    })
+    .join('\n');
   const section = [
     WORK_ITEM_SECTION_START,
     '### Linked Work Items',

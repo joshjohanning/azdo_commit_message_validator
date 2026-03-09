@@ -841,8 +841,9 @@ describe('Azure DevOps Commit Validator', () => {
       expect(updateCall.body).toContain('This PR implements AB#12345');
       expect(updateCall.body).toContain('<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-START -->');
       expect(updateCall.body).toContain('### Linked Work Items');
-      expect(updateCall.body).toContain('| AB#12345 | Bug | Fix login bug |');
-      expect(updateCall.body).toContain('<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-END -->');
+      expect(updateCall.body).toContain(
+        '| [12345](https://dev.azure.com/my-org/_workitems/edit/12345) | Bug | Fix login bug |'
+      );
     });
 
     it('should support deprecated append-work-item-title input as alias', async () => {
@@ -889,7 +890,7 @@ describe('Azure DevOps Commit Validator', () => {
       mockOctokit.rest.pulls.get.mockResolvedValue({
         data: {
           title: 'feat: new feature',
-          body: 'This PR implements AB#12345\n\n---\n<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-START -->\n### Linked Work Items\n| Work Item | Type | Title |\n|---|---|---|\n| AB#12345 | Bug | Old title |\n<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-END -->'
+          body: 'This PR implements AB#12345\n\n---\n<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-START -->\n### Linked Work Items\n| Work Item | Type | Title |\n|---|---|---|\n| [12345](https://dev.azure.com/my-org/_workitems/edit/12345) | Bug | Old title |\n<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-END -->'
         }
       });
 
@@ -900,7 +901,9 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockSetFailed).not.toHaveBeenCalled();
       const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
       expect(updateCall.body).toContain('This PR implements AB#12345');
-      expect(updateCall.body).toContain('| AB#12345 | Bug | Fix login bug |');
+      expect(updateCall.body).toContain(
+        '| [12345](https://dev.azure.com/my-org/_workitems/edit/12345) | Bug | Fix login bug |'
+      );
       expect(updateCall.body).not.toContain('Old title');
     });
 
@@ -959,8 +962,12 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockGetWorkItemTitle).toHaveBeenCalledTimes(2);
       const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
       expect(updateCall.body).toContain('This PR implements AB#111 and AB#222');
-      expect(updateCall.body).toContain('| AB#111 | User Story | First item |');
-      expect(updateCall.body).toContain('| AB#222 | Bug | Second item |');
+      expect(updateCall.body).toContain(
+        '| [111](https://dev.azure.com/my-org/_workitems/edit/111) | User Story | First item |'
+      );
+      expect(updateCall.body).toContain(
+        '| [222](https://dev.azure.com/my-org/_workitems/edit/222) | Bug | Second item |'
+      );
     });
 
     it('should gracefully handle when getWorkItemTitle returns null', async () => {
@@ -1039,7 +1046,9 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockGetWorkItemTitle).toHaveBeenCalledWith('my-org', 'azdo-token', '12345');
       const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
       expect(updateCall.body).toContain('This PR implements AB#12345');
-      expect(updateCall.body).toContain('| AB#12345 | Bug | Fix login bug |');
+      expect(updateCall.body).toContain(
+        '| [12345](https://dev.azure.com/my-org/_workitems/edit/12345) | Bug | Fix login bug |'
+      );
     });
   });
 
