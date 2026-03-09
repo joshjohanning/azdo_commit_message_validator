@@ -46,6 +46,7 @@ inputs:
     default: 'true'
   append-work-item-title:
     description: 'Deprecated: Use add-work-item-table instead. This input will be removed in a future major version.'
+    deprecationMessage: 'The append-work-item-title input is deprecated. Use add-work-item-table instead.'
     required: false
     default: 'false'
   add-work-item-table:

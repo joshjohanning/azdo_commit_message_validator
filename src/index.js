@@ -48,12 +48,6 @@ export async function run() {
     const addWorkItemTable =
       addWorkItemTableRaw === 'true' || (addWorkItemTableRaw !== 'true' && appendWorkItemTitleRaw === 'true');
 
-    if (appendWorkItemTitleRaw === 'true' && addWorkItemTableRaw !== 'true') {
-      core.warning(
-        `The 'append-work-item-title' input is deprecated and will be removed in a future major version. Please use 'add-work-item-table' instead.`
-      );
-    }
-
     // Warn if an invalid scope value was provided
     if (checkPullRequest && pullRequestCheckScopeRaw && !validScopes.includes(pullRequestCheckScopeRaw)) {
       core.warning(
