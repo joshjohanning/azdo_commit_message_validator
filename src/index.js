@@ -645,7 +645,9 @@ async function appendWorkItemTitlesToPRBody(
     const workItemInfo = await getWorkItemTitle(azureDevopsOrganization, azureDevopsToken, workItemNumber);
     if (workItemInfo && workItemInfo.title) {
       workItemInfos.push({ id: workItemNumber, title: workItemInfo.title, type: workItemInfo.type });
-      core.summary.addRaw(`- 📝 **Annotated:** AB#${workItemNumber} - ${workItemInfo.title} (${workItemInfo.type})\n`);
+      core.summary.addRaw(
+        `- 📝 **Linked work item:** ${workItemNumber} - ${workItemInfo.title} (${workItemInfo.type})\n`
+      );
     }
   }
 
@@ -659,10 +661,11 @@ async function appendWorkItemTitlesToPRBody(
   // references even inside markdown links and adds duplicate Development
   // section entries. Use just the work item number as the link text.
   const devOpsBaseUrl = `https://dev.azure.com/${azureDevopsOrganization}`;
+  const sanitizeCell = value => String(value).replace(/\r?\n/g, ' ').replace(/\|/g, '\\|');
   const tableRows = workItemInfos
     .map(info => {
       const workItemUrl = `${devOpsBaseUrl}/_workitems/edit/${info.id}`;
-      return `| [${info.id}](${workItemUrl}) | ${info.type} | ${info.title} |`;
+      return `| [${info.id}](${workItemUrl}) | ${sanitizeCell(info.type)} | ${sanitizeCell(info.title)} |`;
     })
     .join('\n');
   const section = [
