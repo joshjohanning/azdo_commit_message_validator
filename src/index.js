@@ -661,7 +661,7 @@ async function appendWorkItemTitlesToPRBody(
   // references even inside markdown links and adds duplicate Development
   // section entries. Use just the work item number as the link text.
   const devOpsBaseUrl = `https://dev.azure.com/${azureDevopsOrganization}`;
-  const sanitizeCell = value => String(value).replace(/\r?\n/g, ' ').replace(/\|/g, '\\|');
+  const sanitizeCell = value => String(value).replace(/\\/g, '\\\\').replace(/\r?\n/g, ' ').replace(/\|/g, '\\|');
   const tableRows = workItemInfos
     .map(info => {
       const workItemUrl = `${devOpsBaseUrl}/_workitems/edit/${info.id}`;
