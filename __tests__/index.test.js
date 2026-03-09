@@ -845,7 +845,7 @@ describe('Azure DevOps Commit Validator', () => {
       expect(updateCall.body).toContain('<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-END -->');
     });
 
-    it('should support deprecated append-work-item-title input with warning', async () => {
+    it('should support deprecated append-work-item-title input as alias', async () => {
       mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'false';
         if (name === 'check-pull-request') return 'true';
@@ -870,8 +870,6 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockSetFailed).not.toHaveBeenCalled();
-      expect(mockWarning).toHaveBeenCalledWith(expect.stringContaining('append-work-item-title'));
-      expect(mockWarning).toHaveBeenCalledWith(expect.stringContaining('add-work-item-table'));
       expect(mockOctokit.rest.pulls.update).toHaveBeenCalled();
     });
 
