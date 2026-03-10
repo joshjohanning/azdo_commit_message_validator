@@ -44,6 +44,8 @@ on:
 jobs:
   pr-commit-message-enforcer-and-linker:
     runs-on: ubuntu-latest
+    # Skip runs triggered by azure-boards bot editing the PR body to avoid duplicate workflow runs
+    if: github.actor != 'azure-boards[bot]'
     permissions:
       contents: read
       pull-requests: write
@@ -63,19 +65,20 @@ jobs:
 
 ### Inputs
 
-| Name                                   | Description                                                                                                                                                                | Required | Default               |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
-| `check-pull-request`                   | Check the pull request for `AB#xxx` (scope configurable via `pull-request-check-scope`)                                                                                    | `true`   | `false`               |
-| `pull-request-check-scope`             | Only if `check-pull-request=true`, where to look for `AB#` in the PR: `title-or-body`, `body-only`, or `title-only`                                                        | `false`  | `title-or-body`       |
-| `check-commits`                        | Check each commit in the pull request for `AB#xxx`                                                                                                                         | `true`   | `true`                |
-| `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message                                                       | `false`  | `true`                |
-| `link-commits-to-pull-request`         | Only if `check-commits=true`, link the work items found in commits to the pull request                                                                                     | `false`  | `true`                |
-| `validate-work-item-exists`            | Validate that the work item(s) referenced in commits and PR exist in Azure DevOps (requires `azure-devops-token` and `azure-devops-organization`)                          | `false`  | `true`                |
-| `append-work-item-title`               | Append the work item title to `AB#xxx` references in the PR body (e.g. `AB#123` becomes `AB#123 - Fix bug`). Requires `azure-devops-token` and `azure-devops-organization` | `false`  | `false`               |
-| `azure-devops-organization`            | Only if `check-commits=true`, link the work items found in commits to the pull request                                                                                     | `false`  | `''`                  |
-| `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT)                                             | `false`  | `''`                  |
-| `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                                                                      | `true`   | `${{ github.token }}` |
-| `comment-on-failure`                   | Comment on the pull request if the action fails                                                                                                                            | `true`   | `true`                |
+| Name                                   | Description                                                                                                                                                                              | Required | Default               |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
+| `check-pull-request`                   | Check the pull request for `AB#xxx` (scope configurable via `pull-request-check-scope`)                                                                                                  | `true`   | `false`               |
+| `pull-request-check-scope`             | Only if `check-pull-request=true`, where to look for `AB#` in the PR: `title-or-body`, `body-only`, or `title-only`                                                                      | `false`  | `title-or-body`       |
+| `check-commits`                        | Check each commit in the pull request for `AB#xxx`                                                                                                                                       | `true`   | `true`                |
+| `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message                                                                     | `false`  | `true`                |
+| `link-commits-to-pull-request`         | Only if `check-commits=true`, link the work items found in commits to the pull request                                                                                                   | `false`  | `true`                |
+| `validate-work-item-exists`            | Validate that the work item(s) referenced in commits and PR exist in Azure DevOps (requires `azure-devops-token` and `azure-devops-organization`)                                        | `false`  | `true`                |
+| `add-work-item-table`                  | Add a "Linked Work Items" table to the PR body showing titles for `AB#xxx` references (original references are preserved). Requires `azure-devops-token` and `azure-devops-organization` | `false`  | `false`               |
+| `append-work-item-title`               | **Deprecated** - use `add-work-item-table` instead. Will be removed in a future major version.                                                                                           | `false`  | `false`               |
+| `azure-devops-organization`            | Only if `check-commits=true`, link the work items found in commits to the pull request                                                                                                   | `false`  | `''`                  |
+| `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT)                                                           | `false`  | `''`                  |
+| `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                                                                                    | `true`   | `${{ github.token }}` |
+| `comment-on-failure`                   | Comment on the pull request if the action fails                                                                                                                                          | `true`   | `true`                |
 
 ## Screenshots
 
