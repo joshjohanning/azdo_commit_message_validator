@@ -43,10 +43,7 @@ export async function run() {
     const githubToken = core.getInput('github-token');
     const commentOnFailure = core.getInput('comment-on-failure') === 'true';
     const validateWorkItemExistsFlag = core.getInput('validate-work-item-exists') === 'true';
-    const addWorkItemTableRaw = core.getInput('add-work-item-table');
-    const appendWorkItemTitleRaw = core.getInput('append-work-item-title');
-    const addWorkItemTable =
-      addWorkItemTableRaw === 'true' || (addWorkItemTableRaw !== 'true' && appendWorkItemTitleRaw === 'true');
+    const addWorkItemTable = core.getInput('add-work-item-table') === 'true';
 
     // Warn if an invalid scope value was provided
     if (checkPullRequest && pullRequestCheckScopeRaw && !validScopes.includes(pullRequestCheckScopeRaw)) {
