@@ -55,7 +55,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Azure DevOps Commit Validator and Pull Request Linker
         uses: joshjohanning/azdo_commit_message_validator@v4
         with:
