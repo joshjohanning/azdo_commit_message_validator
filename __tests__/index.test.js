@@ -151,7 +151,7 @@ describe('Azure DevOps Commit Validator', () => {
       mockContext.payload.pull_request = originalPR;
     });
 
-    it('should fail if both check-commits and check-pull-request are false', async () => {
+    it('should fail if both check-commits and check-pull-request are false and add-work-item-from-branch is false', async () => {
       mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'false';
         if (name === 'check-pull-request') return 'false';
@@ -162,7 +162,7 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockSetFailed).toHaveBeenCalledWith(
-        "At least one of 'check-commits' or 'check-pull-request' must be set to true. Both are currently set to false."
+        "At least one of 'check-commits', 'check-pull-request', or 'add-work-item-from-branch' must be set to true."
       );
     });
 
@@ -2600,6 +2600,41 @@ describe('Azure DevOps Commit Validator', () => {
       // Should NOT update PR body since the only ID was invalid
       expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
       expect(mockWarning).toHaveBeenCalledWith(expect.stringContaining('99999'));
+    });
+
+    it('should work standalone when check-commits and check-pull-request are both false', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/fix' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'false',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Description' }
+      });
+
+      mockValidateWorkItemExists.mockResolvedValueOnce(true);
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('AB#12345')
+        })
+      );
     });
   });
 });

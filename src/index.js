@@ -57,9 +57,9 @@ export async function run() {
     }
 
     // Validate that at least one check is enabled
-    if (!checkPullRequest && !checkCommits) {
+    if (!checkPullRequest && !checkCommits && !addWorkItemFromBranch) {
       core.setFailed(
-        `At least one of 'check-commits' or 'check-pull-request' must be set to true. Both are currently set to false.`
+        `At least one of 'check-commits', 'check-pull-request', or 'add-work-item-from-branch' must be set to true.`
       );
       return;
     }
@@ -756,6 +756,15 @@ async function addWorkItemsToPRBody(octokit, context, pullNumber, azureDevopsOrg
     return;
   }
 
+  // Cap the number of IDs to validate to avoid excessive API calls
+  const MAX_BRANCH_IDS = 5;
+  if (workItemIds.length > MAX_BRANCH_IDS) {
+    core.warning(
+      `Found ${workItemIds.length} potential work item IDs in branch name, only processing the first ${MAX_BRANCH_IDS}`
+    );
+    workItemIds.length = MAX_BRANCH_IDS;
+  }
+
   core.info(`Found work item ID(s) in branch: ${workItemIds.join(', ')}`);
 
   // Get current PR body
@@ -809,7 +818,7 @@ async function addWorkItemsToPRBody(octokit, context, pullNumber, azureDevopsOrg
     body: updatedBody
   });
   core.info('PR body updated with work item tag(s) from branch name');
-  const sanitizedBranchName = branchName.replace(/`/g, '\\`');
+  const sanitizedBranchName = branchName.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
   core.summary.addRaw(`- :link: **Added from branch:** ${abTags} extracted from branch \`${sanitizedBranchName}\`\n`);
 }
 
