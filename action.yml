@@ -49,7 +49,7 @@ inputs:
     required: false
     default: 'false'
   add-work-item-from-branch:
-    description: 'Automatically extract work item ID(s) from the head branch name and add AB#xxx to the PR body if not already present (e.g. branch task/12345/fix-bug adds AB#12345 to the PR body). Only matches IDs with 3+ digits to avoid false positives from version numbers. Requires check-pull-request or check-commits to also be enabled.'
+    description: 'Automatically extract work item ID(s) from the head branch name and add AB#xxx to the PR body if not already present (e.g. branch task/12345/fix-bug adds AB#12345 to the PR body). Each extracted ID is always validated against Azure DevOps before being added regardless of the validate-work-item-exists setting. Requires azure-devops-token and azure-devops-organization to be set.'
     required: false
     default: 'false'
 

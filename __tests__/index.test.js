@@ -2256,17 +2256,19 @@ describe('Azure DevOps Commit Validator', () => {
       expect(extractWorkItemIdsFromBranch(undefined)).toEqual([]);
     });
 
-    it('should ignore short numbers to avoid false positives from version numbers', () => {
+    it('should extract numbers preceded by separators but not letters', () => {
+      // v2 and v3 don't match because 'v' is not a separator
       expect(extractWorkItemIdsFromBranch('feature-v2-add-logging')).toEqual([]);
-      expect(extractWorkItemIdsFromBranch('release-1-2-3')).toEqual([]);
       expect(extractWorkItemIdsFromBranch('hotfix/v3')).toEqual([]);
+      // Numbers directly after separators do match
+      expect(extractWorkItemIdsFromBranch('release-1-2-3')).toEqual(['1', '2', '3']);
     });
 
-    it('should match exactly 3 digit IDs', () => {
+    it('should match 3 digit IDs', () => {
       expect(extractWorkItemIdsFromBranch('task/123/fix')).toEqual(['123']);
     });
 
-    it('should ignore 2-digit numbers but match longer ones in same branch', () => {
+    it('should extract all numbers from branch', () => {
       expect(extractWorkItemIdsFromBranch('hotfix/2024-bugfix')).toEqual(['2024']);
     });
   });
@@ -2283,11 +2285,10 @@ describe('Azure DevOps Commit Validator', () => {
           'link-commits-to-pull-request': 'false',
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
-          'append-work-item-title': 'false',
           'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
-          'azure-devops-token': '',
-          'azure-devops-organization': ''
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
         };
         return inputs[name] || '';
       });
@@ -2296,6 +2297,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: { title: 'My PR', body: 'Some description' }
       });
 
+      mockValidateWorkItemExists.mockResolvedValueOnce(true);
       mockOctokit.paginate.mockResolvedValueOnce([]); // commits
 
       await run();
@@ -2318,11 +2320,10 @@ describe('Azure DevOps Commit Validator', () => {
           'link-commits-to-pull-request': 'false',
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
-          'append-work-item-title': 'false',
           'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
-          'azure-devops-token': '',
-          'azure-devops-organization': ''
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
         };
         return inputs[name] || '';
       });
@@ -2350,11 +2351,10 @@ describe('Azure DevOps Commit Validator', () => {
           'link-commits-to-pull-request': 'false',
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
-          'append-work-item-title': 'false',
           'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
-          'azure-devops-token': '',
-          'azure-devops-organization': ''
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
         };
         return inputs[name] || '';
       });
@@ -2378,7 +2378,6 @@ describe('Azure DevOps Commit Validator', () => {
           'link-commits-to-pull-request': 'false',
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
-          'append-work-item-title': 'false',
           'add-work-item-from-branch': 'false',
           'github-token': 'github-token',
           'azure-devops-token': '',
@@ -2406,11 +2405,10 @@ describe('Azure DevOps Commit Validator', () => {
           'link-commits-to-pull-request': 'false',
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
-          'append-work-item-title': 'false',
           'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
-          'azure-devops-token': '',
-          'azure-devops-organization': ''
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
         };
         return inputs[name] || '';
       });
@@ -2419,6 +2417,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: { title: 'My PR', body: '' }
       });
 
+      mockValidateWorkItemExists.mockResolvedValueOnce(true);
       mockOctokit.paginate.mockResolvedValueOnce([]); // commits
 
       await run();
@@ -2442,11 +2441,10 @@ describe('Azure DevOps Commit Validator', () => {
           'link-commits-to-pull-request': 'false',
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
-          'append-work-item-title': 'false',
           'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
-          'azure-devops-token': '',
-          'azure-devops-organization': ''
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
         };
         return inputs[name] || '';
       });
@@ -2455,6 +2453,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: { title: 'My PR', body: 'Description' }
       });
 
+      mockValidateWorkItemExists.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
       mockOctokit.paginate.mockResolvedValueOnce([]); // commits
 
       await run();
@@ -2482,11 +2481,10 @@ describe('Azure DevOps Commit Validator', () => {
           'link-commits-to-pull-request': 'false',
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
-          'append-work-item-title': 'false',
           'add-work-item-from-branch': 'true',
           'github-token': 'github-token',
-          'azure-devops-token': '',
-          'azure-devops-organization': ''
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
         };
         return inputs[name] || '';
       });
@@ -2495,6 +2493,8 @@ describe('Azure DevOps Commit Validator', () => {
         data: { title: 'My PR', body: 'Fixes AB#12345' }
       });
 
+      // Only 67890 needs validation (12345 already in body)
+      mockValidateWorkItemExists.mockResolvedValueOnce(true);
       mockOctokit.paginate.mockResolvedValueOnce([]); // commits
 
       await run();
@@ -2503,6 +2503,103 @@ describe('Azure DevOps Commit Validator', () => {
       const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
       expect(updateCall.body).toContain('AB#67890');
       expect(updateCall.body).toContain('Fixes AB#12345'); // original body preserved
+    });
+
+    it('should fail if azure-devops-token is missing when add-work-item-from-branch is enabled', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/fix' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'github-token': 'github-token',
+          'azure-devops-token': '',
+          'azure-devops-organization': ''
+        };
+        return inputs[name] || '';
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('add-work-item-from-branch'));
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('azure-devops-token'));
+    });
+
+    it('should skip branch-extracted IDs that do not exist in Azure DevOps when validation is enabled', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'fix/12345/99999-combined' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'true',
+          'add-work-item-from-branch': 'true',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Description' }
+      });
+
+      // 12345 exists, 99999 does not
+      mockValidateWorkItemExists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should only add AB#12345 (the valid one), not AB#99999
+      const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
+      expect(updateCall.body).toContain('AB#12345');
+      expect(updateCall.body).not.toContain('AB#99999');
+      expect(mockWarning).toHaveBeenCalledWith(expect.stringContaining('99999'));
+    });
+
+    it('should not update PR body when all branch-extracted IDs fail validation', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/99999/fix' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'true',
+          'add-work-item-from-branch': 'true',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Description' }
+      });
+
+      // 99999 does not exist
+      mockValidateWorkItemExists.mockResolvedValueOnce(false);
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should NOT update PR body since the only ID was invalid
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+      expect(mockWarning).toHaveBeenCalledWith(expect.stringContaining('99999'));
     });
   });
 });

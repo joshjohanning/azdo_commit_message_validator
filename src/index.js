@@ -15,8 +15,8 @@ import { run as linkWorkItem, validateWorkItemExists, getWorkItemTitle } from '.
 /** Regex pattern to match Azure DevOps work item references (AB#123) */
 const AB_PATTERN = /AB#[0-9]+/gi;
 
-/** Regex pattern to extract work item IDs from branch names (3+ digit sequences preceded by start or separator) */
-const BRANCH_WORK_ITEM_PATTERN = /(?:^|[/\-_])(\d{3,})/g;
+/** Regex pattern to extract work item IDs from branch names (digit sequences preceded by start or separator) */
+const BRANCH_WORK_ITEM_PATTERN = /(?:^|[/\-_])(\d+)/g;
 
 /** HTML comment markers for identifying different validation scenarios */
 export const COMMENT_MARKERS = {
@@ -73,8 +73,8 @@ export async function run() {
       return;
     }
 
-    // Validate Azure DevOps configuration if linking, work item validation, or title appending is enabled
-    if (linkCommitsToPullRequest || validateWorkItemExistsFlag || addWorkItemTable) {
+    // Validate Azure DevOps configuration if linking, work item validation, title appending, or branch extraction is enabled
+    if (linkCommitsToPullRequest || validateWorkItemExistsFlag || addWorkItemTable || addWorkItemFromBranch) {
       const missingConfig = [];
       if (!azureDevopsOrganization) missingConfig.push('azure-devops-organization');
       if (!azureDevopsToken) missingConfig.push('azure-devops-token');
@@ -84,6 +84,7 @@ export async function run() {
         if (linkCommitsToPullRequest) features.push('link-commits-to-pull-request');
         if (validateWorkItemExistsFlag) features.push('validate-work-item-exists');
         if (addWorkItemTable) features.push('add-work-item-table');
+        if (addWorkItemFromBranch) features.push('add-work-item-from-branch');
         core.setFailed(
           `The following input${missingConfig.length === 1 ? ' is' : 's are'} required when ${features.join(' or ')} ${features.length === 1 ? 'is' : 'are'} enabled: ${missingConfig.join(', ')}`
         );
@@ -95,7 +96,7 @@ export async function run() {
 
     // Automatically add AB# tags from branch name if enabled
     if (addWorkItemFromBranch) {
-      await addWorkItemsToPRBody(octokit, context, pullNumber);
+      await addWorkItemsToPRBody(octokit, context, pullNumber, azureDevopsOrganization, azureDevopsToken);
     }
 
     // Store work item to commit mapping and validation results
@@ -714,7 +715,7 @@ async function appendWorkItemTitlesToPRBody(
  * Extract work item IDs from a branch name
  * Matches digit sequences preceded by start of string or separators (/, -, _)
  *
- * @param {string} branchName - The branch name to extract work item IDs from
+ * @param {string | null | undefined} branchName - The branch name to extract work item IDs from
  * @returns {string[]} Array of unique work item ID strings (e.g. ['12345', '67890'])
  */
 export function extractWorkItemIdsFromBranch(branchName) {
@@ -735,12 +736,15 @@ export function extractWorkItemIdsFromBranch(branchName) {
 /**
  * Add AB# work item tags to the PR body based on work item IDs found in the branch name.
  * Skips IDs that are already referenced in the PR body.
+ * Always validates IDs against Azure DevOps before adding them.
  *
  * @param {Object} octokit - GitHub API client
  * @param {Object} context - GitHub Actions context
  * @param {number} pullNumber - Pull request number
+ * @param {string} azureDevopsOrganization - Azure DevOps organization name
+ * @param {string} azureDevopsToken - Azure DevOps PAT token
  */
-async function addWorkItemsToPRBody(octokit, context, pullNumber) {
+async function addWorkItemsToPRBody(octokit, context, pullNumber, azureDevopsOrganization, azureDevopsToken) {
   const { owner, repo } = context.repo;
   const branchName = context.payload.pull_request?.head?.ref || '';
 
@@ -774,8 +778,27 @@ async function addWorkItemsToPRBody(octokit, context, pullNumber) {
     return;
   }
 
+  // Validate IDs against Azure DevOps before adding
+  let idsToAdd = missingIds;
+  const validatedIds = [];
+  for (const id of missingIds) {
+    const exists = await validateWorkItemExists(azureDevopsOrganization, azureDevopsToken, id);
+    if (exists) {
+      validatedIds.push(id);
+    } else {
+      core.warning(
+        `Work item ID ${id} extracted from branch '${branchName}' does not exist in Azure DevOps - skipping`
+      );
+    }
+  }
+  idsToAdd = validatedIds;
+  if (idsToAdd.length === 0) {
+    core.info('No valid work item IDs from branch to add (all failed validation)');
+    return;
+  }
+
   // Build the AB# tags to add
-  const abTags = missingIds.map(id => `AB#${id}`).join(' ');
+  const abTags = idsToAdd.map(id => `AB#${id}`).join(' ');
   const updatedBody = currentBody ? `${currentBody}\n\n${abTags}` : abTags;
 
   core.info(`Adding work item tag(s) to PR body: ${abTags}`);
@@ -786,7 +809,8 @@ async function addWorkItemsToPRBody(octokit, context, pullNumber) {
     body: updatedBody
   });
   core.info('PR body updated with work item tag(s) from branch name');
-  core.summary.addRaw(`- :link: **Added from branch:** ${abTags} extracted from branch \`${branchName}\`\n`);
+  const sanitizedBranchName = branchName.replace(/`/g, '\\`');
+  core.summary.addRaw(`- :link: **Added from branch:** ${abTags} extracted from branch \`${sanitizedBranchName}\`\n`);
 }
 
 /**
