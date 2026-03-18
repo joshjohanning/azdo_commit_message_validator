@@ -92,7 +92,7 @@ describe('Azure DevOps Commit Validator', () => {
         'github-token': 'github-token',
         'comment-on-failure': 'true',
         'validate-work-item-exists': 'false',
-        'append-work-item-title': 'false',
+        'add-work-item-table': 'false',
         'add-work-item-from-branch': 'false'
       };
       return defaults[name] || '';
@@ -812,15 +812,15 @@ describe('Azure DevOps Commit Validator', () => {
     });
   });
 
-  describe('Append work item title', () => {
-    it('should append work item title to AB# in PR body when enabled', async () => {
+  describe('Work item title table', () => {
+    it('should add work item title table to PR body when enabled', async () => {
       mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'false';
         if (name === 'check-pull-request') return 'true';
         if (name === 'github-token') return 'github-token';
         if (name === 'comment-on-failure') return 'false';
         if (name === 'validate-work-item-exists') return 'false';
-        if (name === 'append-work-item-title') return 'true';
+        if (name === 'add-work-item-table') return 'true';
         if (name === 'azure-devops-token') return 'azdo-token';
         if (name === 'azure-devops-organization') return 'my-org';
         return '';
@@ -839,21 +839,23 @@ describe('Azure DevOps Commit Validator', () => {
 
       expect(mockSetFailed).not.toHaveBeenCalled();
       expect(mockGetWorkItemTitle).toHaveBeenCalledWith('my-org', 'azdo-token', '12345');
-      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          body: 'This PR implements AB#12345 - Fix login bug'
-        })
+      const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
+      expect(updateCall.body).toContain('This PR implements AB#12345');
+      expect(updateCall.body).toContain('<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-START -->');
+      expect(updateCall.body).toContain('### Linked Work Items');
+      expect(updateCall.body).toContain(
+        '| [12345](https://dev.azure.com/my-org/_workitems/edit/12345) | Bug | Fix login bug |'
       );
     });
 
-    it('should not update PR body when work item already has title appended', async () => {
+    it('should update section when work item titles section already exists', async () => {
       mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'false';
         if (name === 'check-pull-request') return 'true';
         if (name === 'github-token') return 'github-token';
         if (name === 'comment-on-failure') return 'false';
         if (name === 'validate-work-item-exists') return 'false';
-        if (name === 'append-work-item-title') return 'true';
+        if (name === 'add-work-item-table') return 'true';
         if (name === 'azure-devops-token') return 'azdo-token';
         if (name === 'azure-devops-organization') return 'my-org';
         return '';
@@ -862,25 +864,31 @@ describe('Azure DevOps Commit Validator', () => {
       mockOctokit.rest.pulls.get.mockResolvedValue({
         data: {
           title: 'feat: new feature',
-          body: 'This PR implements AB#12345 - Fix login bug'
+          body: 'This PR implements AB#12345\n\n---\n<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-START -->\n### Linked Work Items\n| Work Item | Type | Title |\n|---|---|---|\n| [12345](https://dev.azure.com/my-org/_workitems/edit/12345) | Bug | Old title |\n<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-END -->'
         }
       });
+
+      mockGetWorkItemTitle.mockResolvedValue({ title: 'Fix login bug', type: 'Bug' });
 
       await run();
 
       expect(mockSetFailed).not.toHaveBeenCalled();
-      expect(mockGetWorkItemTitle).not.toHaveBeenCalled();
-      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+      const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
+      expect(updateCall.body).toContain('This PR implements AB#12345');
+      expect(updateCall.body).toContain(
+        '| [12345](https://dev.azure.com/my-org/_workitems/edit/12345) | Bug | Fix login bug |'
+      );
+      expect(updateCall.body).not.toContain('Old title');
     });
 
-    it('should not append when append-work-item-title is false', async () => {
+    it('should not add table when add-work-item-table is false', async () => {
       mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'false';
         if (name === 'check-pull-request') return 'true';
         if (name === 'github-token') return 'github-token';
         if (name === 'comment-on-failure') return 'false';
         if (name === 'validate-work-item-exists') return 'false';
-        if (name === 'append-work-item-title') return 'false';
+        if (name === 'add-work-item-table') return 'false';
         return '';
       });
 
@@ -905,7 +913,7 @@ describe('Azure DevOps Commit Validator', () => {
         if (name === 'github-token') return 'github-token';
         if (name === 'comment-on-failure') return 'false';
         if (name === 'validate-work-item-exists') return 'false';
-        if (name === 'append-work-item-title') return 'true';
+        if (name === 'add-work-item-table') return 'true';
         if (name === 'azure-devops-token') return 'azdo-token';
         if (name === 'azure-devops-organization') return 'my-org';
         return '';
@@ -926,10 +934,13 @@ describe('Azure DevOps Commit Validator', () => {
 
       expect(mockSetFailed).not.toHaveBeenCalled();
       expect(mockGetWorkItemTitle).toHaveBeenCalledTimes(2);
-      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          body: 'This PR implements AB#111 - First item and AB#222 - Second item'
-        })
+      const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
+      expect(updateCall.body).toContain('This PR implements AB#111 and AB#222');
+      expect(updateCall.body).toContain(
+        '| [111](https://dev.azure.com/my-org/_workitems/edit/111) | User Story | First item |'
+      );
+      expect(updateCall.body).toContain(
+        '| [222](https://dev.azure.com/my-org/_workitems/edit/222) | Bug | Second item |'
       );
     });
 
@@ -940,7 +951,7 @@ describe('Azure DevOps Commit Validator', () => {
         if (name === 'github-token') return 'github-token';
         if (name === 'comment-on-failure') return 'false';
         if (name === 'validate-work-item-exists') return 'false';
-        if (name === 'append-work-item-title') return 'true';
+        if (name === 'add-work-item-table') return 'true';
         if (name === 'azure-devops-token') return 'azdo-token';
         if (name === 'azure-devops-organization') return 'my-org';
         return '';
@@ -968,7 +979,7 @@ describe('Azure DevOps Commit Validator', () => {
         if (name === 'github-token') return 'github-token';
         if (name === 'comment-on-failure') return 'false';
         if (name === 'validate-work-item-exists') return 'false';
-        if (name === 'append-work-item-title') return 'true';
+        if (name === 'add-work-item-table') return 'true';
         if (name === 'azure-devops-token') return '';
         if (name === 'azure-devops-organization') return '';
         return '';
@@ -976,17 +987,17 @@ describe('Azure DevOps Commit Validator', () => {
 
       await run();
 
-      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('append-work-item-title'));
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('add-work-item-table'));
     });
 
-    it('should append title with validate-work-item-exists also enabled', async () => {
+    it('should add table with validate-work-item-exists also enabled', async () => {
       mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'false';
         if (name === 'check-pull-request') return 'true';
         if (name === 'github-token') return 'github-token';
         if (name === 'comment-on-failure') return 'false';
         if (name === 'validate-work-item-exists') return 'true';
-        if (name === 'append-work-item-title') return 'true';
+        if (name === 'add-work-item-table') return 'true';
         if (name === 'azure-devops-token') return 'azdo-token';
         if (name === 'azure-devops-organization') return 'my-org';
         return '';
@@ -1007,10 +1018,10 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockSetFailed).not.toHaveBeenCalled();
       expect(mockValidateWorkItemExists).toHaveBeenCalled();
       expect(mockGetWorkItemTitle).toHaveBeenCalledWith('my-org', 'azdo-token', '12345');
-      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          body: 'This PR implements AB#12345 - Fix login bug'
-        })
+      const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
+      expect(updateCall.body).toContain('This PR implements AB#12345');
+      expect(updateCall.body).toContain(
+        '| [12345](https://dev.azure.com/my-org/_workitems/edit/12345) | Bug | Fix login bug |'
       );
     });
   });

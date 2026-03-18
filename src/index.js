@@ -46,7 +46,7 @@ export async function run() {
     const githubToken = core.getInput('github-token');
     const commentOnFailure = core.getInput('comment-on-failure') === 'true';
     const validateWorkItemExistsFlag = core.getInput('validate-work-item-exists') === 'true';
-    const appendWorkItemTitle = core.getInput('append-work-item-title') === 'true';
+    const addWorkItemTable = core.getInput('add-work-item-table') === 'true';
     const addWorkItemFromBranch = core.getInput('add-work-item-from-branch') === 'true';
 
     // Warn if an invalid scope value was provided
@@ -74,7 +74,7 @@ export async function run() {
     }
 
     // Validate Azure DevOps configuration if linking, work item validation, or title appending is enabled
-    if (linkCommitsToPullRequest || validateWorkItemExistsFlag || appendWorkItemTitle) {
+    if (linkCommitsToPullRequest || validateWorkItemExistsFlag || addWorkItemTable) {
       const missingConfig = [];
       if (!azureDevopsOrganization) missingConfig.push('azure-devops-organization');
       if (!azureDevopsToken) missingConfig.push('azure-devops-token');
@@ -83,7 +83,7 @@ export async function run() {
         const features = [];
         if (linkCommitsToPullRequest) features.push('link-commits-to-pull-request');
         if (validateWorkItemExistsFlag) features.push('validate-work-item-exists');
-        if (appendWorkItemTitle) features.push('append-work-item-title');
+        if (addWorkItemTable) features.push('add-work-item-table');
         core.setFailed(
           `The following input${missingConfig.length === 1 ? ' is' : 's are'} required when ${features.join(' or ')} ${features.length === 1 ? 'is' : 'are'} enabled: ${missingConfig.join(', ')}`
         );
@@ -132,7 +132,7 @@ export async function run() {
         azureDevopsOrganization,
         azureDevopsToken,
         workItemToCommitMap,
-        appendWorkItemTitle,
+        addWorkItemTable,
         pullRequestCheckScope
       );
     }
@@ -440,7 +440,7 @@ async function checkCommitsForWorkItems(
  * @param {string} azureDevopsOrganization - Azure DevOps organization name
  * @param {string} azureDevopsToken - Azure DevOps PAT token
  * @param {Map} workItemToCommitMap - Map of work item IDs to commit info from checkCommitsForWorkItems
- * @param {boolean} appendWorkItemTitle - Whether to append work item titles to AB# references in PR body
+ * @param {boolean} addWorkItemTable - Whether to add a work item titles table to the PR body
  * @param {string} pullRequestCheckScope - Where to look for AB# in the PR: 'title-or-body', 'body-only', or 'title-only'
  * @returns {Array} Returns array of invalid work item IDs found in the PR based on pullRequestCheckScope
  */
@@ -453,7 +453,7 @@ async function checkPullRequestForWorkItems(
   azureDevopsOrganization,
   azureDevopsToken,
   workItemToCommitMap,
-  appendWorkItemTitle = false,
+  addWorkItemTable = false,
   pullRequestCheckScope = 'title-or-body'
 ) {
   const { owner, repo } = context.repo;
@@ -595,7 +595,7 @@ async function checkPullRequestForWorkItems(
       }
 
       // Append work item titles to PR body if enabled
-      if (appendWorkItemTitle && azureDevopsOrganization && azureDevopsToken) {
+      if (addWorkItemTable && azureDevopsOrganization && azureDevopsToken) {
         await appendWorkItemTitlesToPRBody(
           octokit,
           context,
@@ -615,10 +615,15 @@ async function checkPullRequestForWorkItems(
   return [];
 }
 
+/** HTML comment markers for identifying the work item titles section */
+const WORK_ITEM_SECTION_START = '<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-START -->';
+const WORK_ITEM_SECTION_END = '<!-- AZDO-VALIDATOR: WORK-ITEM-TITLES-END -->';
+
 /**
- * Append work item titles to AB# references in the PR body
- * Only updates references that don't already have a title appended.
- * Uses the pattern: AB#123 -> AB#123 - Work Item Title
+ * Append work item titles to the PR body as a separate section.
+ * Adds a "Linked Work Items" table at the bottom of the PR body,
+ * keeping the original AB# references intact so the Azure DevOps
+ * GitHub integration continues to detect them for the Development section.
  *
  * @param {Object} octokit - GitHub API client
  * @param {Object} context - GitHub Actions context
@@ -638,38 +643,60 @@ async function appendWorkItemTitlesToPRBody(
   azureDevopsToken
 ) {
   const { owner, repo } = context.repo;
-  let updatedBody = pullBody;
-  let hasChanges = false;
 
+  // Collect work item info
+  const workItemInfos = [];
   for (const workItem of workItems) {
     const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
-
-    // Skip if this AB# reference already has a title appended (AB#123 - ...)
-    const alreadyAnnotatedPattern = new RegExp(`AB#${workItemNumber}(?!\\d)\\s+-\\s+\\S`, 'i');
-    if (alreadyAnnotatedPattern.test(updatedBody)) {
-      core.info(`Work item AB#${workItemNumber} already has title appended in PR body, skipping`);
-      continue;
-    }
-
     const workItemInfo = await getWorkItemTitle(azureDevopsOrganization, azureDevopsToken, workItemNumber);
     if (workItemInfo && workItemInfo.title) {
-      // Replace bare AB#123 with AB#123 - Title (only where not already annotated)
-      const barePattern = new RegExp(`AB#${workItemNumber}(?!\\d)(?!\\s+-\\s+\\S)`, 'gi');
-      const replacement = `AB#${workItemNumber} - ${workItemInfo.title}`;
-      const newBody = updatedBody.replace(barePattern, () => replacement);
-
-      if (newBody !== updatedBody) {
-        updatedBody = newBody;
-        hasChanges = true;
-        core.info(`Appended title to AB#${workItemNumber}: "${workItemInfo.title}"`);
-        core.summary.addRaw(
-          `- 📝 **Annotated:** AB#${workItemNumber} - ${workItemInfo.title} (${workItemInfo.type})\n`
-        );
-      }
+      workItemInfos.push({ id: workItemNumber, title: workItemInfo.title, type: workItemInfo.type });
+      core.summary.addRaw(
+        `- 📝 **Linked work item:** ${workItemNumber} - ${workItemInfo.title} (${workItemInfo.type})\n`
+      );
     }
   }
 
-  if (hasChanges) {
+  if (workItemInfos.length === 0) {
+    core.info('No work item titles found to append');
+    return;
+  }
+
+  // Build the work items section
+  // Avoid using AB# in the table text -- the azure-boards bot detects AB#
+  // references even inside markdown links and adds duplicate Development
+  // section entries. Use just the work item number as the link text.
+  const devOpsBaseUrl = `https://dev.azure.com/${azureDevopsOrganization}`;
+  const sanitizeCell = value => String(value).replace(/\\/g, '\\\\').replace(/\r?\n/g, ' ').replace(/\|/g, '\\|');
+  const tableRows = workItemInfos
+    .map(info => {
+      const workItemUrl = `${devOpsBaseUrl}/_workitems/edit/${info.id}`;
+      return `| [${info.id}](${workItemUrl}) | ${sanitizeCell(info.type)} | ${sanitizeCell(info.title)} |`;
+    })
+    .join('\n');
+  const section = [
+    WORK_ITEM_SECTION_START,
+    '### Linked Work Items',
+    '| Work Item | Type | Title |',
+    '|---|---|---|',
+    tableRows,
+    WORK_ITEM_SECTION_END
+  ].join('\n');
+
+  // Strip any existing work item titles section from the body
+  const bodyWithoutSection = pullBody
+    .replace(
+      new RegExp(`\\n*---\\n${escapeRegExp(WORK_ITEM_SECTION_START)}[\\s\\S]*?${escapeRegExp(WORK_ITEM_SECTION_END)}`),
+      ''
+    )
+    .replace(
+      new RegExp(`\\n*${escapeRegExp(WORK_ITEM_SECTION_START)}[\\s\\S]*?${escapeRegExp(WORK_ITEM_SECTION_END)}`),
+      ''
+    );
+
+  const updatedBody = `${bodyWithoutSection}\n\n---\n${section}`;
+
+  if (updatedBody !== pullBody) {
     core.info('Updating PR body with work item titles...');
     await octokit.rest.pulls.update({
       owner,
@@ -679,7 +706,7 @@ async function appendWorkItemTitlesToPRBody(
     });
     core.info('... PR body updated successfully');
   } else {
-    core.info('No changes needed for PR body (all work items already annotated or no titles found)');
+    core.info('No changes needed for PR body (work item titles section already up to date)');
   }
 }
 
@@ -760,6 +787,16 @@ async function addWorkItemsToPRBody(octokit, context, pullNumber) {
   });
   core.info('PR body updated with work item tag(s) from branch name');
   core.summary.addRaw(`- :link: **Added from branch:** ${abTags} extracted from branch \`${branchName}\`\n`);
+}
+
+/**
+ * Escape special regex characters in a string
+ *
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string safe for use in RegExp
+ */
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
