@@ -8,6 +8,10 @@
 
 This action validates that pull requests and commits contain Azure DevOps work item links (e.g. `AB#123`), and **automatically links the GitHub Pull Request to work items found in commit messages**.
 
+## What's new
+
+Please refer to the [release page](https://github.com/joshjohanning/azdo_commit_message_validator/releases) for the latest release notes.
+
 ## Key Features
 
 1. **Validates Pull Requests** - Ensures PR title or body contains an Azure DevOps work item link (e.g. `AB#123`)
@@ -51,9 +55,9 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Azure DevOps Commit Validator and Pull Request Linker
-        uses: joshjohanning/azdo_commit_message_validator@v2
+        uses: joshjohanning/azdo_commit_message_validator@v4
         with:
           check-pull-request: true
           check-commits: true
@@ -74,7 +78,6 @@ jobs:
 | `link-commits-to-pull-request`         | Only if `check-commits=true`, link the work items found in commits to the pull request                                                                                                   | `false`  | `true`                |
 | `validate-work-item-exists`            | Validate that the work item(s) referenced in commits and PR exist in Azure DevOps (requires `azure-devops-token` and `azure-devops-organization`)                                        | `false`  | `true`                |
 | `add-work-item-table`                  | Add a "Linked Work Items" table to the PR body showing titles for `AB#xxx` references (original references are preserved). Requires `azure-devops-token` and `azure-devops-organization` | `false`  | `false`               |
-| `append-work-item-title`               | **Deprecated** - use `add-work-item-table` instead. Will be removed in a future major version.                                                                                           | `false`  | `false`               |
 | `azure-devops-organization`            | Only if `check-commits=true`, link the work items found in commits to the pull request                                                                                                   | `false`  | `''`                  |
 | `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT)                                                           | `false`  | `''`                  |
 | `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                                                                                    | `true`   | `${{ github.token }}` |

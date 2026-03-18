@@ -44,16 +44,11 @@ inputs:
     description: 'Validate that the work item(s) referenced in commits and PR exist in Azure DevOps. Requires azure-devops-token and azure-devops-organization to be set.'
     required: false
     default: 'true'
-  append-work-item-title:
-    description: 'Deprecated: Use add-work-item-table instead. This input will be removed in a future major version.'
-    deprecationMessage: 'The append-work-item-title input is deprecated. Use add-work-item-table instead.'
-    required: false
-    default: 'false'
   add-work-item-table:
     description: 'Add a Linked Work Items table to the PR body showing titles for AB#xxx references (original AB# references are preserved). Requires azure-devops-token and azure-devops-organization to be set.'
     required: false
     default: 'false'
 
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
