@@ -49,9 +49,13 @@ inputs:
     required: false
     default: 'false'
   add-work-item-from-branch:
-    description: 'Automatically extract work item ID(s) from the head branch name and add AB#xxx to the PR body if not already present (e.g. branch task/12345/fix-bug adds AB#12345 to the PR body). Each extracted ID is always validated against Azure DevOps before being added regardless of the validate-work-item-exists setting. Requires azure-devops-token and azure-devops-organization to be set.'
+    description: 'Automatically extract work item ID(s) from the head branch name and add AB#xxx to the PR body if not already present (e.g. branch task/12345/fix-bug adds AB#12345 to the PR body). Only numbers following one of the configured branch-work-item-prefixes keywords are extracted. Each extracted ID is always validated against Azure DevOps before being added regardless of the validate-work-item-exists setting. Requires azure-devops-token and azure-devops-organization to be set.'
     required: false
     default: 'false'
+  branch-work-item-prefixes:
+    description: 'Comma-separated list of keyword prefixes used to identify work item IDs in branch names (e.g. task/12345). Only numbers following one of these keywords (separated by /, -, or _) are extracted. Only used when add-work-item-from-branch is true.'
+    required: false
+    default: 'task, bug, bugfix'
 
 runs:
   using: 'node24'

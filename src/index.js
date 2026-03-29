@@ -15,8 +15,19 @@ import { run as linkWorkItem, validateWorkItemExists, getWorkItemTitle } from '.
 /** Regex pattern to match Azure DevOps work item references (AB#123) */
 const AB_PATTERN = /AB#[0-9]+/gi;
 
-/** Regex pattern to extract work item IDs from branch names (digit sequences preceded by start or separator) */
-const BRANCH_WORK_ITEM_PATTERN = /(?:^|[/\-_])(\d+)/g;
+/**
+ * Build a regex that matches work item IDs (digit sequences) preceded by one
+ * of the given keyword prefixes and a separator (/, -, _).
+ * The keyword itself must be preceded by start-of-string or a separator to
+ * avoid partial matches (e.g. "hotfix" won't match "fix").
+ *
+ * @param {string[]} prefixes - Keyword prefixes (e.g. ['task', 'bug', 'bugfix'])
+ * @returns {RegExp} A global, case-insensitive regex with a single capture group for the digits
+ */
+function buildBranchWorkItemPattern(prefixes) {
+  const escaped = prefixes.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return new RegExp(`(?:^|[/\\-_])(?:${escaped.join('|')})[/\\-_](\\d+)`, 'gi');
+}
 
 /** HTML comment markers for identifying different validation scenarios */
 export const COMMENT_MARKERS = {
@@ -48,6 +59,11 @@ export async function run() {
     const validateWorkItemExistsFlag = core.getInput('validate-work-item-exists') === 'true';
     const addWorkItemTable = core.getInput('add-work-item-table') === 'true';
     const addWorkItemFromBranch = core.getInput('add-work-item-from-branch') === 'true';
+    const branchWorkItemPrefixes = core
+      .getInput('branch-work-item-prefixes')
+      .split(',')
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
 
     // Warn if an invalid scope value was provided
     if (checkPullRequest && pullRequestCheckScopeRaw && !validScopes.includes(pullRequestCheckScopeRaw)) {
@@ -96,7 +112,14 @@ export async function run() {
 
     // Automatically add AB# tags from branch name if enabled
     if (addWorkItemFromBranch) {
-      await addWorkItemsToPRBody(octokit, context, pullNumber, azureDevopsOrganization, azureDevopsToken);
+      await addWorkItemsToPRBody(
+        octokit,
+        context,
+        pullNumber,
+        azureDevopsOrganization,
+        azureDevopsToken,
+        branchWorkItemPrefixes
+      );
     }
 
     // Store work item to commit mapping and validation results
@@ -712,20 +735,22 @@ async function appendWorkItemTitlesToPRBody(
 }
 
 /**
- * Extract work item IDs from a branch name
- * Matches digit sequences preceded by start of string or separators (/, -, _)
+ * Extract work item IDs from a branch name.
+ * Only matches digit sequences that follow one of the given keyword prefixes
+ * (e.g. task/12345, bug-67890). The prefix must be preceded by start-of-string
+ * or a separator (/, -, _) to prevent partial-word matches.
  *
  * @param {string | null | undefined} branchName - The branch name to extract work item IDs from
+ * @param {string[]} prefixes - Keyword prefixes that identify work item IDs (e.g. ['task', 'bug', 'bugfix'])
  * @returns {string[]} Array of unique work item ID strings (e.g. ['12345', '67890'])
  */
-export function extractWorkItemIdsFromBranch(branchName) {
-  if (!branchName) return [];
+export function extractWorkItemIdsFromBranch(branchName, prefixes) {
+  if (!branchName || !prefixes || prefixes.length === 0) return [];
 
+  const pattern = buildBranchWorkItemPattern(prefixes);
   const ids = [];
   let match;
-  // Reset lastIndex since we're using a global regex
-  BRANCH_WORK_ITEM_PATTERN.lastIndex = 0;
-  while ((match = BRANCH_WORK_ITEM_PATTERN.exec(branchName)) !== null) {
+  while ((match = pattern.exec(branchName)) !== null) {
     ids.push(match[1]);
   }
 
@@ -743,13 +768,21 @@ export function extractWorkItemIdsFromBranch(branchName) {
  * @param {number} pullNumber - Pull request number
  * @param {string} azureDevopsOrganization - Azure DevOps organization name
  * @param {string} azureDevopsToken - Azure DevOps PAT token
+ * @param {string[]} branchPrefixes - Keyword prefixes for identifying work item IDs in branch names
  */
-async function addWorkItemsToPRBody(octokit, context, pullNumber, azureDevopsOrganization, azureDevopsToken) {
+async function addWorkItemsToPRBody(
+  octokit,
+  context,
+  pullNumber,
+  azureDevopsOrganization,
+  azureDevopsToken,
+  branchPrefixes
+) {
   const { owner, repo } = context.repo;
   const branchName = context.payload.pull_request?.head?.ref || '';
 
-  core.info(`Extracting work item IDs from branch name: ${branchName}`);
-  const workItemIds = extractWorkItemIdsFromBranch(branchName);
+  core.info(`Extracting work item IDs from branch name: ${branchName} (prefixes: ${branchPrefixes.join(', ')})`);
+  const workItemIds = extractWorkItemIdsFromBranch(branchName, branchPrefixes);
 
   if (workItemIds.length === 0) {
     core.info('No work item IDs found in branch name');

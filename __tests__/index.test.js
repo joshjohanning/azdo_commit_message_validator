@@ -93,7 +93,8 @@ describe('Azure DevOps Commit Validator', () => {
         'comment-on-failure': 'true',
         'validate-work-item-exists': 'false',
         'add-work-item-table': 'false',
-        'add-work-item-from-branch': 'false'
+        'add-work-item-from-branch': 'false',
+        'branch-work-item-prefixes': 'task, bug, bugfix'
       };
       return defaults[name] || '';
     });
@@ -162,7 +163,7 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockSetFailed).toHaveBeenCalledWith(
-        "At least one of 'check-commits', 'check-pull-request', or 'add-work-item-from-branch' must be set to true."
+        `At least one of 'check-commits', 'check-pull-request', or 'add-work-item-from-branch' must be set to true.`
       );
     });
 
@@ -778,7 +779,7 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockWarning).toHaveBeenCalledWith(
-        expect.stringContaining("Invalid value 'invalid-value' for 'pull-request-check-scope'")
+        expect.stringContaining(`Invalid value 'invalid-value' for 'pull-request-check-scope'`)
       );
       // Should still pass because it falls back to title-or-body and title has AB#
       expect(mockSetFailed).not.toHaveBeenCalled();
@@ -2206,70 +2207,113 @@ describe('Azure DevOps Commit Validator', () => {
   });
 
   describe('extractWorkItemIdsFromBranch', () => {
+    const defaultPrefixes = ['task', 'bug', 'bugfix'];
+
     it('should extract work item ID from task/12345/make-it-better', () => {
-      expect(extractWorkItemIdsFromBranch('task/12345/make-it-better')).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('task/12345/make-it-better', defaultPrefixes)).toEqual(['12345']);
     });
 
     it('should extract work item ID from task/12345-make-it-better', () => {
-      expect(extractWorkItemIdsFromBranch('task/12345-make-it-better')).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('task/12345-make-it-better', defaultPrefixes)).toEqual(['12345']);
     });
 
     it('should extract work item ID from task/12345', () => {
-      expect(extractWorkItemIdsFromBranch('task/12345')).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('task/12345', defaultPrefixes)).toEqual(['12345']);
     });
 
     it('should extract work item ID from task-12345', () => {
-      expect(extractWorkItemIdsFromBranch('task-12345')).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('task-12345', defaultPrefixes)).toEqual(['12345']);
     });
 
-    it('should extract work item ID from 12345-make-it-better', () => {
-      expect(extractWorkItemIdsFromBranch('12345-make-it-better')).toEqual(['12345']);
+    it('should extract work item ID from task_12345', () => {
+      expect(extractWorkItemIdsFromBranch('task_12345', defaultPrefixes)).toEqual(['12345']);
     });
 
-    it('should extract work item ID from 12345make-it-better', () => {
-      expect(extractWorkItemIdsFromBranch('12345make-it-better')).toEqual(['12345']);
+    it('should extract work item ID from bug/12345', () => {
+      expect(extractWorkItemIdsFromBranch('bug/12345', defaultPrefixes)).toEqual(['12345']);
     });
 
-    it('should extract work item ID from 12345', () => {
-      expect(extractWorkItemIdsFromBranch('12345')).toEqual(['12345']);
+    it('should extract work item ID from bugfix/12345', () => {
+      expect(extractWorkItemIdsFromBranch('bugfix/12345', defaultPrefixes)).toEqual(['12345']);
     });
 
-    it('should extract work item ID from feature_12345_description', () => {
-      expect(extractWorkItemIdsFromBranch('feature_12345_description')).toEqual(['12345']);
+    it('should NOT extract bare number from 12345-make-it-better', () => {
+      expect(extractWorkItemIdsFromBranch('12345-make-it-better', defaultPrefixes)).toEqual([]);
+    });
+
+    it('should NOT extract bare number from 12345', () => {
+      expect(extractWorkItemIdsFromBranch('12345', defaultPrefixes)).toEqual([]);
+    });
+
+    it('should NOT extract number from feature_12345_description without feature prefix', () => {
+      expect(extractWorkItemIdsFromBranch('feature_12345_description', defaultPrefixes)).toEqual([]);
     });
 
     it('should return unique IDs when branch contains duplicates', () => {
-      expect(extractWorkItemIdsFromBranch('fix/12345/12345-again')).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('bug/12345/task/12345-again', defaultPrefixes)).toEqual(['12345']);
     });
 
     it('should extract multiple different work item IDs', () => {
-      expect(extractWorkItemIdsFromBranch('fix/12345/67890-combined')).toEqual(['12345', '67890']);
+      expect(extractWorkItemIdsFromBranch('bug/12345/task/67890-combined', defaultPrefixes)).toEqual([
+        '12345',
+        '67890'
+      ]);
     });
 
-    it('should return empty array for branch with no numbers', () => {
-      expect(extractWorkItemIdsFromBranch('feature/add-new-stuff')).toEqual([]);
+    it('should return empty array for branch with no keyword-prefixed numbers', () => {
+      expect(extractWorkItemIdsFromBranch('feature/add-new-stuff', defaultPrefixes)).toEqual([]);
     });
 
     it('should return empty array for null/empty input', () => {
-      expect(extractWorkItemIdsFromBranch('')).toEqual([]);
-      expect(extractWorkItemIdsFromBranch(null)).toEqual([]);
-      expect(extractWorkItemIdsFromBranch(undefined)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch(null, defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch(undefined, defaultPrefixes)).toEqual([]);
     });
 
-    it('should extract numbers preceded by separators but not letters', () => {
-      // v2 and v3 don't match because 'v' is not a separator
-      expect(extractWorkItemIdsFromBranch('feature-v2-add-logging')).toEqual([]);
-      expect(extractWorkItemIdsFromBranch('hotfix/v3')).toEqual([]);
-      // Numbers directly after separators do match
-      expect(extractWorkItemIdsFromBranch('release-1-2-3')).toEqual(['1', '2', '3']);
+    it('should return empty array when prefixes is empty', () => {
+      expect(extractWorkItemIdsFromBranch('task/12345', [])).toEqual([]);
     });
 
-    it('should match 3 digit IDs', () => {
-      expect(extractWorkItemIdsFromBranch('task/123/fix')).toEqual(['123']);
+    it('should NOT extract numbers that are not preceded by a keyword prefix', () => {
+      expect(extractWorkItemIdsFromBranch('feature-v2-add-logging', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('hotfix/v3', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('release-1-2-3', defaultPrefixes)).toEqual([]);
     });
 
-    it('should extract all numbers from branch', () => {
-      expect(extractWorkItemIdsFromBranch('hotfix/2024-bugfix')).toEqual(['2024']);
+    it('should NOT extract year-like numbers from non-keyword branches', () => {
+      expect(extractWorkItemIdsFromBranch('hotfix/2024-bugfix', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('feature/update-2025-calendar', defaultPrefixes)).toEqual([]);
+    });
+
+    it('should match 3 digit IDs after a keyword prefix', () => {
+      expect(extractWorkItemIdsFromBranch('task/123/fix', defaultPrefixes)).toEqual(['123']);
+    });
+
+    it('should be case-insensitive for prefixes', () => {
+      expect(extractWorkItemIdsFromBranch('Task/12345', defaultPrefixes)).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('BUG/12345', defaultPrefixes)).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('BUGFIX/12345', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should work with custom prefixes', () => {
+      const customPrefixes = ['story', 'epic', 'pbi'];
+      expect(extractWorkItemIdsFromBranch('story/12345/fix', customPrefixes)).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('epic-67890', customPrefixes)).toEqual(['67890']);
+      expect(extractWorkItemIdsFromBranch('pbi_11111', customPrefixes)).toEqual(['11111']);
+      expect(extractWorkItemIdsFromBranch('task/12345', customPrefixes)).toEqual([]);
+    });
+
+    it('should NOT match prefix as substring of a longer word', () => {
+      // "hotfix" contains "fix" but should not match when prefix is just "fix"
+      // because "fix" in "hotfix" is preceded by "t", not a separator
+      const prefixes = ['fix'];
+      expect(extractWorkItemIdsFromBranch('hotfix/12345', prefixes)).toEqual([]);
+      // but "some-fix/12345" should match because "fix" is preceded by "-"
+      expect(extractWorkItemIdsFromBranch('some-fix/12345', prefixes)).toEqual(['12345']);
+    });
+
+    it('should work with prefix nested after user segment', () => {
+      expect(extractWorkItemIdsFromBranch('users/josh/task/12345/fix', defaultPrefixes)).toEqual(['12345']);
     });
   });
 
@@ -2286,6 +2330,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2321,6 +2366,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2352,6 +2398,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2406,6 +2453,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2431,7 +2479,7 @@ describe('Azure DevOps Commit Validator', () => {
     });
 
     it('should add multiple AB# tags from branch with multiple IDs', async () => {
-      mockContext.payload.pull_request = { number: 42, head: { ref: 'fix/12345/67890-combined' } };
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'bug/12345/task/67890-combined' } };
 
       mockGetInput.mockImplementation(name => {
         const inputs = {
@@ -2442,6 +2490,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2471,7 +2520,7 @@ describe('Azure DevOps Commit Validator', () => {
     });
 
     it('should only add missing AB# tags when some already exist in body', async () => {
-      mockContext.payload.pull_request = { number: 42, head: { ref: 'fix/12345/67890-combined' } };
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'bug/12345/task/67890-combined' } };
 
       mockGetInput.mockImplementation(name => {
         const inputs = {
@@ -2482,6 +2531,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2517,6 +2567,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
           'github-token': 'github-token',
           'azure-devops-token': '',
           'azure-devops-organization': ''
@@ -2531,7 +2582,7 @@ describe('Azure DevOps Commit Validator', () => {
     });
 
     it('should skip branch-extracted IDs that do not exist in Azure DevOps when validation is enabled', async () => {
-      mockContext.payload.pull_request = { number: 42, head: { ref: 'fix/12345/99999-combined' } };
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'bug/12345/task/99999-combined' } };
 
       mockGetInput.mockImplementation(name => {
         const inputs = {
@@ -2542,6 +2593,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'true',
           'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2579,6 +2631,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'true',
           'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2614,6 +2667,7 @@ describe('Azure DevOps Commit Validator', () => {
           'comment-on-failure': 'false',
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
