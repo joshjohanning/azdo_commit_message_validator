@@ -159,7 +159,7 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockSetFailed).toHaveBeenCalledWith(
-        "At least one of 'check-commits' or 'check-pull-request' must be set to true. Both are currently set to false."
+        `At least one of 'check-commits' or 'check-pull-request' must be set to true. Both are currently set to false.`
       );
     });
 
@@ -775,7 +775,7 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockWarning).toHaveBeenCalledWith(
-        expect.stringContaining("Invalid value 'invalid-value' for 'pull-request-check-scope'")
+        expect.stringContaining(`Invalid value 'invalid-value' for 'pull-request-check-scope'`)
       );
       // Should still pass because it falls back to title-or-body and title has AB#
       expect(mockSetFailed).not.toHaveBeenCalled();
