@@ -9,17 +9,18 @@
   },
   "main": "dist/index.js",
   "scripts": {
-    "format": "npx prettier --write .",
-    "format:check": "npx prettier --check .",
-    "lint": "npx eslint src/**/*.js",
-    "test": "npm run test:bash && npm run test:js",
-    "test:bash": "./__tests__/action.test.sh",
-    "test:js": "NODE_OPTIONS=--experimental-vm-modules npx jest",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules npx jest --watch",
-    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules npx jest --coverage",
+    "bundle": "npm run format:write && npm run package",
+    "ci-test": "npm run test:bash && NODE_OPTIONS='--experimental-vm-modules' npx jest --coverage",
     "coverage": "npx @joshjohanning/make-coverage-badge-better --label-color '#333' --output-path ./badges/coverage.svg",
-    "package": "npx @vercel/ncc build --source-map --license licenses.txt src/index.js -o dist",
-    "all": "npm run format && npm run lint && npm run test:coverage && npm run coverage && npm run package"
+    "format:write": "npx prettier --write .",
+    "format:check": "npx prettier --check .",
+    "lint": "npx eslint .",
+    "package": "npx @vercel/ncc build src/index.js -o dist --source-map --license licenses.txt",
+    "package:watch": "npm run package -- --watch",
+    "test": "npm run test:bash && NODE_OPTIONS='--experimental-vm-modules' npx jest",
+    "test:bash": "./__tests__/action.test.sh",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' npx jest --watch",
+    "all": "npm run format:write && npm run lint && npm run ci-test && npm run coverage && npm run package"
   },
   "repository": {
     "type": "git",
