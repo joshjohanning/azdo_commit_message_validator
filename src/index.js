@@ -848,8 +848,15 @@ async function addWorkItemsToPRBody(
   let idsToAdd = missingIds;
   const validatedIds = [];
   for (const id of missingIds) {
-    const exists = await validateWorkItemExists(azureDevopsOrganization, azureDevopsToken, id);
-    if (exists) {
+    const result = await validateWorkItemExists(azureDevopsOrganization, azureDevopsToken, id);
+
+    if (result.authError) {
+      const authMessage = `Azure DevOps authentication failed while validating work items from branch. Your Personal Access Token (PAT) may be expired, revoked, or lack the required scopes. Details: ${result.errorMessage}`;
+      core.setFailed(authMessage);
+      return;
+    }
+
+    if (result.exists) {
       validatedIds.push(id);
     } else {
       core.warning(

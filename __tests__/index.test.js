@@ -2408,7 +2408,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: { title: 'My PR', body: 'Some description' }
       });
 
-      mockValidateWorkItemExists.mockResolvedValueOnce(true);
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true });
       mockOctokit.paginate.mockResolvedValueOnce([]); // commits
 
       await run();
@@ -2531,7 +2531,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: { title: 'My PR', body: '' }
       });
 
-      mockValidateWorkItemExists.mockResolvedValueOnce(true);
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true });
       mockOctokit.paginate.mockResolvedValueOnce([]); // commits
 
       await run();
@@ -2568,7 +2568,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: { title: 'My PR', body: 'Description' }
       });
 
-      mockValidateWorkItemExists.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true }).mockResolvedValueOnce({ exists: true });
       mockOctokit.paginate.mockResolvedValueOnce([]); // commits
 
       await run();
@@ -2610,7 +2610,7 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       // Only 67890 needs validation (12345 already in body)
-      mockValidateWorkItemExists.mockResolvedValueOnce(true);
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true });
       mockOctokit.paginate.mockResolvedValueOnce([]); // commits
 
       await run();
@@ -2672,7 +2672,7 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       // 12345 exists, 99999 does not
-      mockValidateWorkItemExists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true }).mockResolvedValueOnce({ exists: false });
 
       mockOctokit.paginate.mockResolvedValueOnce([]); // commits
 
@@ -2710,7 +2710,7 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       // 99999 does not exist
-      mockValidateWorkItemExists.mockResolvedValueOnce(false);
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: false });
 
       mockOctokit.paginate.mockResolvedValueOnce([]); // commits
 
@@ -2745,7 +2745,7 @@ describe('Azure DevOps Commit Validator', () => {
         data: { title: 'My PR', body: 'Description' }
       });
 
-      mockValidateWorkItemExists.mockResolvedValueOnce(true);
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true });
 
       await run();
 
@@ -2755,6 +2755,43 @@ describe('Azure DevOps Commit Validator', () => {
           body: expect.stringContaining('AB#12345')
         })
       );
+    });
+    it('should handle auth error during branch work item validation', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/fix' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Description' }
+      });
+
+      mockValidateWorkItemExists.mockResolvedValueOnce({
+        exists: false,
+        authError: true,
+        errorMessage: 'Access Denied: The Personal Access Token used has expired.'
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('Personal Access Token (PAT) may be expired'));
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
     });
   });
 });
