@@ -109,12 +109,17 @@ export async function run() {
       );
       workItemToCommitMap = commitResults.workItemToCommitMap;
       invalidWorkItemsFromCommits = commitResults.invalidWorkItems;
+
+      // If auth error was detected, stop processing - setFailed was already called
+      if (commitResults.authError) {
+        return;
+      }
     }
 
     // Check pull request
     let invalidWorkItemsFromPR = [];
     if (checkPullRequest) {
-      invalidWorkItemsFromPR = await checkPullRequestForWorkItems(
+      const prResult = await checkPullRequestForWorkItems(
         octokit,
         context,
         pullNumber,
@@ -126,6 +131,13 @@ export async function run() {
         addWorkItemTable,
         pullRequestCheckScope
       );
+
+      // If auth error was detected, stop processing - setFailed was already called
+      if (prResult && prResult.authError) {
+        return;
+      }
+
+      invalidWorkItemsFromPR = Array.isArray(prResult) ? prResult : [];
     }
 
     // Combine all invalid work items and create ONE comment
@@ -356,9 +368,15 @@ async function checkCommitsForWorkItems(
 
     for (const match of uniqueWorkItems) {
       const workItemId = match.substring(3); // Remove "AB#" prefix
-      const exists = await validateWorkItemExists(azureDevopsOrganization, azureDevopsToken, workItemId);
+      const result = await validateWorkItemExists(azureDevopsOrganization, azureDevopsToken, workItemId);
 
-      if (!exists) {
+      if (result.authError) {
+        const authMessage = `Azure DevOps authentication failed while validating work items. Your Personal Access Token (PAT) may be expired, revoked, or lack the required scopes. Details: ${result.errorMessage}`;
+        core.setFailed(authMessage);
+        return { workItemToCommitMap, invalidWorkItems: [], hasCommitFailures: false, authError: true };
+      }
+
+      if (!result.exists) {
         invalidWorkItems.push(workItemId);
       }
     }
@@ -548,9 +566,15 @@ async function checkPullRequestForWorkItems(
             workItemToCommitMap.set(workItemNumber, null); // null indicates it's from PR title/body
           }
 
-          const exists = await validateWorkItemExists(azureDevopsOrganization, azureDevopsToken, workItemNumber);
+          const result = await validateWorkItemExists(azureDevopsOrganization, azureDevopsToken, workItemNumber);
 
-          if (!exists) {
+          if (result.authError) {
+            const authMessage = `Azure DevOps authentication failed while validating work items. Your Personal Access Token (PAT) may be expired, revoked, or lack the required scopes. Details: ${result.errorMessage}`;
+            core.setFailed(authMessage);
+            return { authError: true };
+          }
+
+          if (!result.exists) {
             invalidWorkItems.push(workItemNumber);
           }
         }
