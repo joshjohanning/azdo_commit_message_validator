@@ -16,6 +16,15 @@ import { run as linkWorkItem, validateWorkItemExists, getWorkItemTitle } from '.
 const AB_PATTERN = /AB#[0-9]+/gi;
 
 /**
+ * Escape special regex characters in a string
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string safe for use in RegExp
+ */
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
  * Build a regex that matches work item IDs (digit sequences) preceded by one
  * of the given keyword prefixes and a separator (/, -, _).
  *
@@ -31,7 +40,7 @@ const AB_PATTERN = /AB#[0-9]+/gi;
  * @returns {RegExp} A global, case-insensitive regex with a single capture group for the digits
  */
 function buildBranchWorkItemPattern(prefixes, minDigits = 1) {
-  const escaped = prefixes.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const escaped = prefixes.map(escapeRegExp);
   const min = Math.max(1, Math.floor(minDigits));
   // Keyword must be at start or after "/" (not after - or _ which indicates mid-description).
   // (?!\d) forces all consecutive digits to be consumed before checking for date patterns.
@@ -87,6 +96,14 @@ export async function run() {
     if (!checkPullRequest && !checkCommits && !addWorkItemFromBranch) {
       core.setFailed(
         `At least one of 'check-commits', 'check-pull-request', or 'add-work-item-from-branch' must be set to true.`
+      );
+      return;
+    }
+
+    // Validate branch extraction configuration
+    if (addWorkItemFromBranch && branchWorkItemPrefixes.length === 0) {
+      core.setFailed(
+        `'branch-work-item-prefixes' must contain at least one keyword when 'add-work-item-from-branch' is enabled.`
       );
       return;
     }
@@ -903,16 +920,6 @@ async function addWorkItemsToPRBody(
   core.info('PR body updated with work item tag(s) from branch name');
   const sanitizedBranchName = branchName.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
   core.summary.addRaw(`- :link: **Added from branch:** ${abTags} extracted from branch \`${sanitizedBranchName}\`\n`);
-}
-
-/**
- * Escape special regex characters in a string
- *
- * @param {string} str - String to escape
- * @returns {string} Escaped string safe for use in RegExp
- */
-function escapeRegExp(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
