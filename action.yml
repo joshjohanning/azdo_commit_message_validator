@@ -33,7 +33,7 @@ inputs:
     description: 'Only required if link-commits-to-pull-request=true, the name of the Azure DevOps organization'
     required: false
   github-token:
-    description: 'The GitHub token that has contents-read and pull_request-write access'
+    description: 'The GitHub token that has `contents: read` and `pull-requests: write` access'
     required: true
     default: ${{ github.token }}
   comment-on-failure:
