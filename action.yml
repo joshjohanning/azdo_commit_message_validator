@@ -27,13 +27,13 @@ inputs:
     required: false
     default: 'true'
   azure-devops-token:
-    description: 'Only required if link-commits-to-pull-request=true, Azure DevOps Personal Access Token to link work item to PR (needs to be a full PAT)'
+    description: 'Azure DevOps Personal Access Token (needs to be a full PAT). Required when any of these are enabled: link-commits-to-pull-request, validate-work-item-exists, add-work-item-table, or add-work-item-from-branch'
     required: false
   azure-devops-organization:
-    description: 'Only required if link-commits-to-pull-request=true, the name of the Azure DevOps organization'
+    description: 'The name of the Azure DevOps organization. Required when any of these are enabled: link-commits-to-pull-request, validate-work-item-exists, add-work-item-table, or add-work-item-from-branch'
     required: false
   github-token:
-    description: 'The GitHub token that has contents-read and pull_request-write access'
+    description: 'The GitHub token that has `contents: read` and `pull-requests: write` access'
     required: true
     default: ${{ github.token }}
   comment-on-failure:
@@ -48,6 +48,18 @@ inputs:
     description: 'Add a Linked Work Items table to the PR body showing titles for AB#xxx references (original AB# references are preserved). Requires azure-devops-token and azure-devops-organization to be set.'
     required: false
     default: 'false'
+  add-work-item-from-branch:
+    description: 'Automatically extract work item ID(s) from the head branch name and add AB#xxx to the PR body if not already present (e.g. branch task/12345/fix-bug adds AB#12345 to the PR body). Only numbers following one of the configured branch-work-item-prefixes keywords are extracted. Each extracted ID is always validated against Azure DevOps before being added regardless of the validate-work-item-exists setting. Requires azure-devops-token and azure-devops-organization to be set.'
+    required: false
+    default: 'false'
+  branch-work-item-prefixes:
+    description: 'Comma-separated list of keyword prefixes used to identify work item IDs in branch names (e.g. task/12345). Only numbers following one of these keywords (separated by /, -, or _) are extracted. Only used when add-work-item-from-branch is true.'
+    required: false
+    default: 'task, bug, bugfix'
+  branch-work-item-min-digits:
+    description: 'Minimum number of digits for a work item ID extracted from a branch name. Set to 1 to match any length. Only used when add-work-item-from-branch is true.'
+    required: false
+    default: '5'
 
 runs:
   using: 'node24'

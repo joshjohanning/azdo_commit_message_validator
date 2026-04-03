@@ -58,6 +58,7 @@ describe('Azure DevOps Commit Validator', () => {
   let mockOctokit;
   let run;
   let COMMENT_MARKERS;
+  let extractWorkItemIdsFromBranch;
 
   beforeAll(async () => {
     // Set NODE_ENV to test to prevent auto-execution
@@ -67,6 +68,7 @@ describe('Azure DevOps Commit Validator', () => {
     const indexModule = await import('../src/index.js');
     run = indexModule.run;
     COMMENT_MARKERS = indexModule.COMMENT_MARKERS;
+    extractWorkItemIdsFromBranch = indexModule.extractWorkItemIdsFromBranch;
   });
 
   beforeEach(() => {
@@ -90,7 +92,10 @@ describe('Azure DevOps Commit Validator', () => {
         'github-token': 'github-token',
         'comment-on-failure': 'true',
         'validate-work-item-exists': 'false',
-        'add-work-item-table': 'false'
+        'add-work-item-table': 'false',
+        'add-work-item-from-branch': 'false',
+        'branch-work-item-prefixes': 'task, bug, bugfix',
+        'branch-work-item-min-digits': '5'
       };
       return defaults[name] || '';
     });
@@ -125,7 +130,7 @@ describe('Azure DevOps Commit Validator', () => {
     };
 
     mockGetOctokit.mockReturnValue(mockOctokit);
-    mockContext.payload.pull_request = { number: 42 };
+    mockContext.payload.pull_request = { number: 42, head: { ref: 'feature/test-branch' } };
 
     // Default mock for validateWorkItemExists (returns true by default)
     mockValidateWorkItemExists.mockResolvedValue({ exists: true });
@@ -148,7 +153,7 @@ describe('Azure DevOps Commit Validator', () => {
       mockContext.payload.pull_request = originalPR;
     });
 
-    it('should fail if both check-commits and check-pull-request are false', async () => {
+    it('should fail if both check-commits and check-pull-request are false and add-work-item-from-branch is false', async () => {
       mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'false';
         if (name === 'check-pull-request') return 'false';
@@ -159,7 +164,7 @@ describe('Azure DevOps Commit Validator', () => {
       await run();
 
       expect(mockSetFailed).toHaveBeenCalledWith(
-        `At least one of 'check-commits' or 'check-pull-request' must be set to true. Both are currently set to false.`
+        `At least one of 'check-commits', 'check-pull-request', or 'add-work-item-from-branch' must be set to true.`
       );
     });
 
@@ -2265,6 +2270,562 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockSetFailed).toHaveBeenCalledWith(
         expect.stringContaining('GITHUB_TOKEN does not have sufficient permissions')
       );
+    });
+  });
+
+  describe('extractWorkItemIdsFromBranch', () => {
+    const defaultPrefixes = ['task', 'bug', 'bugfix'];
+
+    it('should extract work item ID from task/12345/make-it-better', () => {
+      expect(extractWorkItemIdsFromBranch('task/12345/make-it-better', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from task/12345-make-it-better', () => {
+      expect(extractWorkItemIdsFromBranch('task/12345-make-it-better', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from task/12345', () => {
+      expect(extractWorkItemIdsFromBranch('task/12345', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from task-12345', () => {
+      expect(extractWorkItemIdsFromBranch('task-12345', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from task_12345', () => {
+      expect(extractWorkItemIdsFromBranch('task_12345', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from bug/12345', () => {
+      expect(extractWorkItemIdsFromBranch('bug/12345', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should extract work item ID from bugfix/12345', () => {
+      expect(extractWorkItemIdsFromBranch('bugfix/12345', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should NOT extract bare number from 12345-make-it-better', () => {
+      expect(extractWorkItemIdsFromBranch('12345-make-it-better', defaultPrefixes)).toEqual([]);
+    });
+
+    it('should NOT extract bare number from 12345', () => {
+      expect(extractWorkItemIdsFromBranch('12345', defaultPrefixes)).toEqual([]);
+    });
+
+    it('should NOT extract number from feature_12345_description without feature prefix', () => {
+      expect(extractWorkItemIdsFromBranch('feature_12345_description', defaultPrefixes)).toEqual([]);
+    });
+
+    it('should return unique IDs when branch contains duplicates', () => {
+      expect(extractWorkItemIdsFromBranch('bug/12345/task/12345-again', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should extract multiple different work item IDs', () => {
+      expect(extractWorkItemIdsFromBranch('bug/12345/task/67890-combined', defaultPrefixes)).toEqual([
+        '12345',
+        '67890'
+      ]);
+    });
+
+    it('should return empty array for branch with no keyword-prefixed numbers', () => {
+      expect(extractWorkItemIdsFromBranch('feature/add-new-stuff', defaultPrefixes)).toEqual([]);
+    });
+
+    it('should return empty array for null/empty input', () => {
+      expect(extractWorkItemIdsFromBranch('', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch(null, defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch(undefined, defaultPrefixes)).toEqual([]);
+    });
+
+    it('should return empty array when prefixes is empty', () => {
+      expect(extractWorkItemIdsFromBranch('task/12345', [])).toEqual([]);
+    });
+
+    it('should NOT extract numbers that are not preceded by a keyword prefix', () => {
+      expect(extractWorkItemIdsFromBranch('feature-v2-add-logging', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('hotfix/v3', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('release-1-2-3', defaultPrefixes)).toEqual([]);
+    });
+
+    it('should NOT extract year-like numbers from non-keyword branches', () => {
+      expect(extractWorkItemIdsFromBranch('hotfix/2024-bugfix', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('feature/update-2025-calendar', defaultPrefixes)).toEqual([]);
+    });
+
+    it('should match 3 digit IDs after a keyword prefix', () => {
+      expect(extractWorkItemIdsFromBranch('task/123/fix', defaultPrefixes)).toEqual(['123']);
+    });
+
+    it('should be case-insensitive for prefixes', () => {
+      expect(extractWorkItemIdsFromBranch('Task/12345', defaultPrefixes)).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('BUG/12345', defaultPrefixes)).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('BUGFIX/12345', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should work with custom prefixes', () => {
+      const customPrefixes = ['story', 'epic', 'pbi'];
+      expect(extractWorkItemIdsFromBranch('story/12345/fix', customPrefixes)).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('epic-67890', customPrefixes)).toEqual(['67890']);
+      expect(extractWorkItemIdsFromBranch('pbi_11111', customPrefixes)).toEqual(['11111']);
+      expect(extractWorkItemIdsFromBranch('task/12345', customPrefixes)).toEqual([]);
+    });
+
+    it('should NOT match prefix as substring of a longer word', () => {
+      // "hotfix" contains "fix" but should not match when prefix is just "fix"
+      // because "fix" in "hotfix" is preceded by "t", not a separator
+      const prefixes = ['fix'];
+      expect(extractWorkItemIdsFromBranch('hotfix/12345', prefixes)).toEqual([]);
+      // "some-fix/12345" should NOT match because "fix" is preceded by "-", not "/"
+      expect(extractWorkItemIdsFromBranch('some-fix/12345', prefixes)).toEqual([]);
+      // but "some/fix/12345" should match because "fix" is preceded by "/"
+      expect(extractWorkItemIdsFromBranch('some/fix/12345', prefixes)).toEqual(['12345']);
+    });
+
+    it('should work with prefix nested after user segment', () => {
+      expect(extractWorkItemIdsFromBranch('users/josh/task/12345/fix', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should NOT extract date-shaped numbers (YYYY-MM-DD pattern)', () => {
+      expect(extractWorkItemIdsFromBranch('bugfix/2024-01-15-fix-login', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('task/2025-03-01/update', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('bug/2023-12-25-xmas', defaultPrefixes)).toEqual([]);
+    });
+
+    it('should NOT extract IDs from keywords in the description segment', () => {
+      // "bug" after "fix-" is in the description, not a branch prefix
+      expect(extractWorkItemIdsFromBranch('task/12345/fix-bug-67890', defaultPrefixes)).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('task-12345-bug-67890', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should respect minDigits parameter', () => {
+      expect(extractWorkItemIdsFromBranch('task/12345', defaultPrefixes, 5)).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('task/1234', defaultPrefixes, 5)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('task/123', defaultPrefixes, 5)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('task/2', defaultPrefixes, 2)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('task/12', defaultPrefixes, 2)).toEqual(['12']);
+    });
+  });
+
+  describe('Add AB# tag from branch', () => {
+    it('should add AB# tag to PR body when work item found in branch name', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/make-it-better' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Some description' }
+      });
+
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true });
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('AB#12345')
+        })
+      );
+    });
+
+    it('should not add AB# tag when it already exists in PR body', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/make-it-better' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Fix AB#12345 bug' }
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should NOT call update since AB#12345 is already in the body
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+    });
+
+    it('should not update PR when no work item IDs found in branch', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'feature/add-new-stuff' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should NOT call pulls.get or pulls.update since no IDs found
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+    });
+
+    it('should not run when add-work-item-from-branch is false', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/make-it-better' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'false',
+          'github-token': 'github-token',
+          'azure-devops-token': '',
+          'azure-devops-organization': ''
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should NOT call pulls.update since feature is disabled
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+    });
+
+    it('should handle empty PR body when adding AB# tag', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/fix' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: '' }
+      });
+
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true });
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should set body to just the AB# tag (no leading newlines)
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: 'AB#12345'
+        })
+      );
+    });
+
+    it('should add multiple AB# tags from branch with multiple IDs', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'bug/12345/task/67890-combined' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Description' }
+      });
+
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true }).mockResolvedValueOnce({ exists: true });
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('AB#12345')
+        })
+      );
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('AB#67890')
+        })
+      );
+    });
+
+    it('should only add missing AB# tags when some already exist in body', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'bug/12345/task/67890-combined' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Fixes AB#12345' }
+      });
+
+      // Only 67890 needs validation (12345 already in body)
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true });
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should only add AB#67890 since AB#12345 already exists
+      const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
+      expect(updateCall.body).toContain('AB#67890');
+      expect(updateCall.body).toContain('Fixes AB#12345'); // original body preserved
+    });
+
+    it('should fail if azure-devops-token is missing when add-work-item-from-branch is enabled', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/fix' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': '',
+          'azure-devops-organization': ''
+        };
+        return inputs[name] || '';
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('add-work-item-from-branch'));
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('azure-devops-token'));
+    });
+
+    it('should skip branch-extracted IDs that do not exist in Azure DevOps when adding work items from the branch name', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'bug/12345/task/99999-combined' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'true',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Description' }
+      });
+
+      // 12345 exists, 99999 does not
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true }).mockResolvedValueOnce({ exists: false });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should only add AB#12345 (the valid one), not AB#99999
+      const updateCall = mockOctokit.rest.pulls.update.mock.calls[0][0];
+      expect(updateCall.body).toContain('AB#12345');
+      expect(updateCall.body).not.toContain('AB#99999');
+      expect(mockWarning).toHaveBeenCalledWith(expect.stringContaining('99999'));
+    });
+
+    it('should not update PR body when all branch-extracted IDs fail validation', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/99999/fix' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'true',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Description' }
+      });
+
+      // 99999 does not exist
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: false });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      // Should NOT update PR body since the only ID was invalid
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+      expect(mockWarning).toHaveBeenCalledWith(expect.stringContaining('99999'));
+    });
+
+    it('should work standalone when check-commits and check-pull-request are both false', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/fix' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'false',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Description' }
+      });
+
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockOctokit.rest.pulls.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining('AB#12345')
+        })
+      );
+    });
+    it('should handle auth error during branch work item validation', async () => {
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/fix' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'true',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Description' }
+      });
+
+      mockValidateWorkItemExists.mockResolvedValueOnce({
+        exists: false,
+        authError: true,
+        errorMessage: 'Access Denied: The Personal Access Token used has expired.'
+      });
+
+      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('Personal Access Token (PAT) may be expired'));
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
     });
   });
 });

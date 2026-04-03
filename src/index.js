@@ -15,6 +15,39 @@ import { run as linkWorkItem, validateWorkItemExists, getWorkItemTitle } from '.
 /** Regex pattern to match Azure DevOps work item references (AB#123) */
 const AB_PATTERN = /AB#[0-9]+/gi;
 
+/**
+ * Escape special regex characters in a string
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string safe for use in RegExp
+ */
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Build a regex that matches work item IDs (digit sequences) preceded by one
+ * of the given keyword prefixes and a separator (/, -, _).
+ *
+ * Safeguards against false positives:
+ * - The keyword must be preceded by start-of-string or a path separator (/)
+ *   so keywords buried in descriptions (e.g. "fix-bug-67890") are ignored.
+ * - A negative lookahead rejects date-shaped sequences (e.g. 2024-01-15).
+ * - A configurable minimum digit length filters out short numbers like
+ *   version components or year fragments.
+ *
+ * @param {string[]} prefixes - Keyword prefixes (e.g. ['task', 'bug', 'bugfix'])
+ * @param {number} [minDigits=1] - Minimum number of digits for a work item ID
+ * @returns {RegExp} A global, case-insensitive regex with a single capture group for the digits
+ */
+function buildBranchWorkItemPattern(prefixes, minDigits = 1) {
+  const escaped = prefixes.map(escapeRegExp);
+  const min = Math.max(1, Math.floor(minDigits));
+  // Keyword must be at start or after "/" (not after - or _ which indicates mid-description).
+  // (?!\d) forces all consecutive digits to be consumed before checking for date patterns.
+  // Date-like sequences (e.g. 2024-01-15) are rejected by the second lookahead.
+  return new RegExp(`(?:^|/)(?:${escaped.join('|')})[/\\-_](\\d{${min},})(?!\\d|-\\d{1,2}(?:-\\d{1,2}))`, 'gi');
+}
+
 /** HTML comment markers for identifying different validation scenarios */
 export const COMMENT_MARKERS = {
   COMMITS_NOT_LINKED: '<!-- AZDO-VALIDATOR: COMMITS-NOT-LINKED -->',
@@ -44,6 +77,13 @@ export async function run() {
     const commentOnFailure = core.getInput('comment-on-failure') === 'true';
     const validateWorkItemExistsFlag = core.getInput('validate-work-item-exists') === 'true';
     const addWorkItemTable = core.getInput('add-work-item-table') === 'true';
+    const addWorkItemFromBranch = core.getInput('add-work-item-from-branch') === 'true';
+    const branchWorkItemPrefixes = core
+      .getInput('branch-work-item-prefixes')
+      .split(',')
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
+    const branchWorkItemMinDigits = parseInt(core.getInput('branch-work-item-min-digits') || '5', 10) || 5;
 
     // Warn if an invalid scope value was provided
     if (checkPullRequest && pullRequestCheckScopeRaw && !validScopes.includes(pullRequestCheckScopeRaw)) {
@@ -53,9 +93,17 @@ export async function run() {
     }
 
     // Validate that at least one check is enabled
-    if (!checkPullRequest && !checkCommits) {
+    if (!checkPullRequest && !checkCommits && !addWorkItemFromBranch) {
       core.setFailed(
-        `At least one of 'check-commits' or 'check-pull-request' must be set to true. Both are currently set to false.`
+        `At least one of 'check-commits', 'check-pull-request', or 'add-work-item-from-branch' must be set to true.`
+      );
+      return;
+    }
+
+    // Validate branch extraction configuration
+    if (addWorkItemFromBranch && branchWorkItemPrefixes.length === 0) {
+      core.setFailed(
+        `'branch-work-item-prefixes' must contain at least one keyword when 'add-work-item-from-branch' is enabled.`
       );
       return;
     }
@@ -69,8 +117,8 @@ export async function run() {
       return;
     }
 
-    // Validate Azure DevOps configuration if linking, work item validation, or title appending is enabled
-    if (linkCommitsToPullRequest || validateWorkItemExistsFlag || addWorkItemTable) {
+    // Validate Azure DevOps configuration if linking, work item validation, title appending, or branch extraction is enabled
+    if (linkCommitsToPullRequest || validateWorkItemExistsFlag || addWorkItemTable || addWorkItemFromBranch) {
       const missingConfig = [];
       if (!azureDevopsOrganization) missingConfig.push('azure-devops-organization');
       if (!azureDevopsToken) missingConfig.push('azure-devops-token');
@@ -80,6 +128,7 @@ export async function run() {
         if (linkCommitsToPullRequest) features.push('link-commits-to-pull-request');
         if (validateWorkItemExistsFlag) features.push('validate-work-item-exists');
         if (addWorkItemTable) features.push('add-work-item-table');
+        if (addWorkItemFromBranch) features.push('add-work-item-from-branch');
         core.setFailed(
           `The following input${missingConfig.length === 1 ? ' is' : 's are'} required when ${features.join(' or ')} ${features.length === 1 ? 'is' : 'are'} enabled: ${missingConfig.join(', ')}`
         );
@@ -88,6 +137,19 @@ export async function run() {
     }
 
     const octokit = github.getOctokit(githubToken);
+
+    // Automatically add AB# tags from branch name if enabled
+    if (addWorkItemFromBranch) {
+      await addWorkItemsToPRBody(
+        octokit,
+        context,
+        pullNumber,
+        azureDevopsOrganization,
+        azureDevopsToken,
+        branchWorkItemPrefixes,
+        branchWorkItemMinDigits
+      );
+    }
 
     // Store work item to commit mapping and validation results
     let workItemToCommitMap = new Map();
@@ -265,6 +327,7 @@ async function checkCommitsForWorkItems(
 
     core.info(`Validating new commit: ${commitSha} - ${commitMessage}`);
 
+    AB_PATTERN.lastIndex = 0;
     if (!AB_PATTERN.test(commitMessage)) {
       // Collect invalid commits
       invalidCommits.push({ sha: commitSha, shortSha: shortCommitSha, message: commitMessage });
@@ -502,6 +565,7 @@ async function checkPullRequestForWorkItems(
   const FAILURE_COMMENT_TEXT = ':x: This pull request is not linked to a work item.';
   const SUCCESS_COMMENT_TEXT = ':white_check_mark: This pull request is now linked to a work item.';
 
+  AB_PATTERN.lastIndex = 0;
   if (!AB_PATTERN.test(textToCheck)) {
     core.info('PR not linked to a work item');
     core.error(
@@ -726,13 +790,138 @@ async function appendWorkItemTitlesToPRBody(
 }
 
 /**
- * Escape special regex characters in a string
+ * Extract work item IDs from a branch name.
+ * Only matches digit sequences that follow one of the given keyword prefixes
+ * (e.g. task/12345, bug-67890). The prefix must appear at the start of the
+ * branch name or after a path separator (/) to avoid matching keywords that
+ * appear in description segments. Date-shaped numbers (e.g. 2024-01-15) are
+ * excluded automatically.
  *
- * @param {string} str - String to escape
- * @returns {string} Escaped string safe for use in RegExp
+ * @param {string | null | undefined} branchName - The branch name to extract work item IDs from
+ * @param {string[]} prefixes - Keyword prefixes that identify work item IDs (e.g. ['task', 'bug', 'bugfix'])
+ * @param {number} [minDigits=1] - Minimum number of digits for a work item ID
+ * @returns {string[]} Array of unique work item ID strings (e.g. ['12345', '67890'])
  */
-function escapeRegExp(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export function extractWorkItemIdsFromBranch(branchName, prefixes, minDigits = 1) {
+  if (!branchName || !prefixes || prefixes.length === 0) return [];
+
+  const pattern = buildBranchWorkItemPattern(prefixes, minDigits);
+  const ids = [];
+  let match;
+  while ((match = pattern.exec(branchName)) !== null) {
+    ids.push(match[1]);
+  }
+
+  // Return unique IDs only
+  return [...new Set(ids)];
+}
+
+/**
+ * Add AB# work item tags to the PR body based on work item IDs found in the branch name.
+ * Skips IDs that are already referenced in the PR body.
+ * Always validates IDs against Azure DevOps before adding them.
+ *
+ * @param {Object} octokit - GitHub API client
+ * @param {Object} context - GitHub Actions context
+ * @param {number} pullNumber - Pull request number
+ * @param {string} azureDevopsOrganization - Azure DevOps organization name
+ * @param {string} azureDevopsToken - Azure DevOps PAT token
+ * @param {string[]} branchPrefixes - Keyword prefixes for identifying work item IDs in branch names
+ * @param {number} [minDigits=1] - Minimum number of digits for a work item ID
+ */
+async function addWorkItemsToPRBody(
+  octokit,
+  context,
+  pullNumber,
+  azureDevopsOrganization,
+  azureDevopsToken,
+  branchPrefixes,
+  minDigits = 1
+) {
+  const { owner, repo } = context.repo;
+  const branchName = context.payload.pull_request?.head?.ref || '';
+
+  core.info(
+    `Extracting work item IDs from branch name: ${branchName} (prefixes: ${branchPrefixes.join(', ')}, minDigits: ${minDigits})`
+  );
+  const workItemIds = extractWorkItemIdsFromBranch(branchName, branchPrefixes, minDigits);
+
+  if (workItemIds.length === 0) {
+    core.info('No work item IDs found in branch name');
+    return;
+  }
+
+  // Cap the number of IDs to validate to avoid excessive API calls
+  const MAX_BRANCH_IDS = 5;
+  if (workItemIds.length > MAX_BRANCH_IDS) {
+    core.warning(
+      `Found ${workItemIds.length} potential work item IDs in branch name, only processing the first ${MAX_BRANCH_IDS}`
+    );
+    workItemIds.length = MAX_BRANCH_IDS;
+  }
+
+  core.info(`Found work item ID(s) in branch: ${workItemIds.join(', ')}`);
+
+  // Get current PR body
+  const pullRequest = await octokit.rest.pulls.get({
+    owner,
+    repo,
+    pull_number: pullNumber
+  });
+
+  const currentBody = pullRequest.data.body || '';
+
+  // Filter to only IDs not already in the PR body
+  const missingIds = workItemIds.filter(id => {
+    const pattern = new RegExp(`AB#${id}(?!\\d)`, 'i');
+    return !pattern.test(currentBody);
+  });
+
+  if (missingIds.length === 0) {
+    core.info('All work item IDs from branch are already in the PR body');
+    return;
+  }
+
+  // Validate IDs against Azure DevOps before adding
+  let idsToAdd = missingIds;
+  const validatedIds = [];
+  for (const id of missingIds) {
+    const result = await validateWorkItemExists(azureDevopsOrganization, azureDevopsToken, id);
+
+    if (result.authError) {
+      const authMessage = `Azure DevOps authentication failed while validating work items from branch. Your Personal Access Token (PAT) may be expired, revoked, or lack the required scopes. Details: ${result.errorMessage}`;
+      core.setFailed(authMessage);
+      return;
+    }
+
+    if (result.exists) {
+      validatedIds.push(id);
+    } else {
+      core.warning(
+        `Work item ID ${id} extracted from branch '${branchName}' does not exist in Azure DevOps - skipping`
+      );
+    }
+  }
+  idsToAdd = validatedIds;
+  if (idsToAdd.length === 0) {
+    core.info('No valid work item IDs from branch to add (all failed validation)');
+    return;
+  }
+
+  // Build the AB# tags to add
+  const abTags = idsToAdd.map(id => `AB#${id}`).join(' ');
+  const updatedBody = currentBody ? `${currentBody}\n\n${abTags}` : abTags;
+
+  core.info(`Adding work item tag(s) to PR body: ${abTags}`);
+  await octokit.rest.pulls.update({
+    owner,
+    repo,
+    pull_number: pullNumber,
+    body: updatedBody
+  });
+  core.info('PR body updated with work item tag(s) from branch name');
+  const sanitizedBranchName = branchName.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+  core.summary.addRaw(`- :link: **Added from branch:** ${abTags} extracted from branch \`${sanitizedBranchName}\`\n`);
 }
 
 /**

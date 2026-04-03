@@ -18,7 +18,8 @@ Please refer to the [release page](https://github.com/joshjohanning/azdo_commit_
 2. **Validates Commits** - Ensures each commit in a pull request has an Azure DevOps work item link (e.g. `AB#123`) in the commit message
 3. **Automatically Links PRs to Work Items** - When a work item is referenced in a commit message, the action adds a GitHub Pull Request link to that work item in Azure DevOps
    - 🎯 **This is the key differentiator**: By default, Azure DevOps only adds the Pull Request link to work items mentioned directly in the PR title or body, but this action also links work items found in commit messages!
-4. **Visibility & Tracking** - Work item linkages are added to the job summary for easy visibility
+4. **Auto-Tag from Branch** - Optionally extracts work item IDs from the head branch name (e.g. `task/12345/fix-bug`) and adds `AB#12345` to the PR body automatically
+5. **Visibility & Tracking** - Work item linkages are added to the job summary for easy visibility
 
 ## Action Output
 
@@ -69,19 +70,60 @@ jobs:
 
 ### Inputs
 
-| Name                                   | Description                                                                                                                                                                              | Required | Default               |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
-| `check-pull-request`                   | Check the pull request for `AB#xxx` (scope configurable via `pull-request-check-scope`)                                                                                                  | `true`   | `false`               |
-| `pull-request-check-scope`             | Only if `check-pull-request=true`, where to look for `AB#` in the PR: `title-or-body`, `body-only`, or `title-only`                                                                      | `false`  | `title-or-body`       |
-| `check-commits`                        | Check each commit in the pull request for `AB#xxx`                                                                                                                                       | `true`   | `true`                |
-| `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message                                                                     | `false`  | `true`                |
-| `link-commits-to-pull-request`         | Only if `check-commits=true`, link the work items found in commits to the pull request                                                                                                   | `false`  | `true`                |
-| `validate-work-item-exists`            | Validate that the work item(s) referenced in commits and PR exist in Azure DevOps (requires `azure-devops-token` and `azure-devops-organization`)                                        | `false`  | `true`                |
-| `add-work-item-table`                  | Add a "Linked Work Items" table to the PR body showing titles for `AB#xxx` references (original references are preserved). Requires `azure-devops-token` and `azure-devops-organization` | `false`  | `false`               |
-| `azure-devops-organization`            | Only if `check-commits=true`, link the work items found in commits to the pull request                                                                                                   | `false`  | `''`                  |
-| `azure-devops-token`                   | Only required if `link-commits-to-pull-request=true`, Azure DevOps PAT used to link work item to PR (needs to be a `full` PAT)                                                           | `false`  | `''`                  |
-| `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                                                                                    | `true`   | `${{ github.token }}` |
-| `comment-on-failure`                   | Comment on the pull request if the action fails                                                                                                                                          | `true`   | `true`                |
+| Name                                   | Description                                                                                                                                                                                                                                                                                                                                                                                                         | Required | Default               |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
+| `check-pull-request`                   | Check the pull request for `AB#xxx` (scope configurable via `pull-request-check-scope`)                                                                                                                                                                                                                                                                                                                             | `true`   | `false`               |
+| `pull-request-check-scope`             | Only if `check-pull-request=true`, where to look for `AB#` in the PR: `title-or-body`, `body-only`, or `title-only`                                                                                                                                                                                                                                                                                                 | `false`  | `title-or-body`       |
+| `check-commits`                        | Check each commit in the pull request for `AB#xxx`                                                                                                                                                                                                                                                                                                                                                                  | `true`   | `true`                |
+| `fail-if-missing-workitem-commit-link` | Only if `check-commits=true`, fail the action if a commit in the pull request is missing AB# in every commit message                                                                                                                                                                                                                                                                                                | `false`  | `true`                |
+| `link-commits-to-pull-request`         | Only if `check-commits=true`, link the work items found in commits to the pull request                                                                                                                                                                                                                                                                                                                              | `false`  | `true`                |
+| `validate-work-item-exists`            | Validate that the work item(s) referenced in commits and PR exist in Azure DevOps (requires `azure-devops-token` and `azure-devops-organization`)                                                                                                                                                                                                                                                                   | `false`  | `true`                |
+| `add-work-item-table`                  | Add a "Linked Work Items" table to the PR body showing titles for `AB#xxx` references (original references are preserved). Requires `azure-devops-token` and `azure-devops-organization`                                                                                                                                                                                                                            | `false`  | `false`               |
+| `add-work-item-from-branch`            | Automatically extract work item ID(s) from the head branch name and add `AB#xxx` to the PR body if not already present. Only numbers following one of the configured `branch-work-item-prefixes` keywords are extracted. Each ID is always validated against Azure DevOps before being added (regardless of the `validate-work-item-exists` setting). Requires `azure-devops-token` and `azure-devops-organization` | `false`  | `false`               |
+| `branch-work-item-prefixes`            | Comma-separated list of keyword prefixes used to identify work item IDs in branch names (e.g. `task/12345`). Only numbers following one of these keywords (separated by `/`, `-`, or `_`) are extracted. Only used when `add-work-item-from-branch` is `true`                                                                                                                                                       | `false`  | `task, bug, bugfix`   |
+| `branch-work-item-min-digits`          | Minimum number of digits for a work item ID extracted from a branch name. Set to `1` to match any length. Only used when `add-work-item-from-branch` is `true`                                                                                                                                                                                                                                                      | `false`  | `5`                   |
+| `azure-devops-organization`            | The name of the Azure DevOps organization. Required when any of these are enabled: `link-commits-to-pull-request`, `validate-work-item-exists`, `add-work-item-table`, or `add-work-item-from-branch`                                                                                                                                                                                                               | `false`  | `''`                  |
+| `azure-devops-token`                   | Azure DevOps PAT (needs to be a `full` PAT). Required when any of these are enabled: `link-commits-to-pull-request`, `validate-work-item-exists`, `add-work-item-table`, or `add-work-item-from-branch`                                                                                                                                                                                                             | `false`  | `''`                  |
+| `github-token`                         | The GitHub token that has `contents: read` and `pull-requests: write` access                                                                                                                                                                                                                                                                                                                                        | `true`   | `${{ github.token }}` |
+| `comment-on-failure`                   | Comment on the pull request if the action fails                                                                                                                                                                                                                                                                                                                                                                     | `true`   | `true`                |
+
+### Auto-Tag from Branch Name
+
+When `add-work-item-from-branch` is enabled, the action extracts work item IDs from the pull request's head branch name and adds `AB#xxx` tags to the PR body. This is useful when your team's branching convention includes the Azure DevOps work item ID in the branch name.
+
+**How it works:**
+
+1. The action scans the branch name for keyword prefixes (default: `task`, `bug`, `bugfix`) followed by a separator (`/`, `-`, or `_`) and a number
+2. The keyword must appear at the **start of the branch** or after a path separator (`/`) — keywords that appear mid-description are ignored
+3. Date-shaped numbers (e.g. `2024-01-15`) are automatically excluded
+4. Every extracted ID is validated against Azure DevOps before being added to the PR body — IDs that don't exist are skipped with a warning
+5. IDs already present in the PR body are not added again
+
+**Branch name examples:**
+
+| Branch Name                   | Extracted IDs | Notes                                                                |
+| ----------------------------- | ------------- | -------------------------------------------------------------------- |
+| `task/12345/fix-login`        | `12345`       | ✅ Standard convention                                               |
+| `bug-67890`                   | `67890`       | ✅ Keyword with `-` separator                                        |
+| `users/josh/task/12345/fix`   | `12345`       | ✅ Keyword after path separator                                      |
+| `bugfix/2024-01-15-fix-login` | _(none)_      | ⛔ Date pattern excluded                                             |
+| `task/12345/fix-bug-67890`    | `12345`       | ⛔ `bug` in description ignored                                      |
+| `hotfix/2024-bugfix`          | _(none)_      | ⛔ `hotfix` is not a default prefix                                  |
+| `feature/task-manager-ui`     | _(none)_      | ⛔ No number after keyword                                           |
+| `release/task-2.0.1`          | _(none)_      | ⛔ Short digits filtered by default `branch-work-item-min-digits: 5` |
+
+**Lowering the minimum digit threshold:**
+
+If your Azure DevOps work item IDs are shorter than 5 digits, set `branch-work-item-min-digits` to a lower value:
+
+```yml
+- uses: joshjohanning/azdo_commit_message_validator@v4
+  with:
+    add-work-item-from-branch: true
+    branch-work-item-min-digits: 3
+    azure-devops-organization: my-azdo-org
+    azure-devops-token: ${{ secrets.AZURE_DEVOPS_PAT }}
+```
 
 ## Screenshots
 
