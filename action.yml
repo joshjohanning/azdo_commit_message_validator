@@ -27,10 +27,10 @@ inputs:
     required: false
     default: 'true'
   azure-devops-token:
-    description: 'Only required if link-commits-to-pull-request=true, Azure DevOps Personal Access Token to link work item to PR (needs to be a full PAT)'
+    description: 'Azure DevOps Personal Access Token (needs to be a full PAT). Required when any of these are enabled: link-commits-to-pull-request, validate-work-item-exists, add-work-item-table, or add-work-item-from-branch'
     required: false
   azure-devops-organization:
-    description: 'Only required if link-commits-to-pull-request=true, the name of the Azure DevOps organization'
+    description: 'The name of the Azure DevOps organization. Required when any of these are enabled: link-commits-to-pull-request, validate-work-item-exists, add-work-item-table, or add-work-item-from-branch'
     required: false
   github-token:
     description: 'The GitHub token that has `contents: read` and `pull-requests: write` access'
