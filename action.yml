@@ -57,9 +57,9 @@ inputs:
     required: false
     default: 'task, bug, bugfix'
   branch-work-item-min-digits:
-    description: 'Minimum number of digits for a work item ID extracted from a branch name. Increase this to avoid false positives (e.g. set to 5 if your Azure DevOps work item IDs are 5+ digits). Only used when add-work-item-from-branch is true.'
+    description: 'Minimum number of digits for a work item ID extracted from a branch name. Set to 1 to match any length. Only used when add-work-item-from-branch is true.'
     required: false
-    default: '1'
+    default: '5'
 
 runs:
   using: 'node24'

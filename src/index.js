@@ -83,7 +83,7 @@ export async function run() {
       .split(',')
       .map(p => p.trim())
       .filter(p => p.length > 0);
-    const branchWorkItemMinDigits = parseInt(core.getInput('branch-work-item-min-digits') || '1', 10) || 1;
+    const branchWorkItemMinDigits = parseInt(core.getInput('branch-work-item-min-digits') || '5', 10) || 5;
 
     // Warn if an invalid scope value was provided
     if (checkPullRequest && pullRequestCheckScopeRaw && !validScopes.includes(pullRequestCheckScopeRaw)) {

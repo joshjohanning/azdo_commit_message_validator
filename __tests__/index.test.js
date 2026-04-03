@@ -95,7 +95,7 @@ describe('Azure DevOps Commit Validator', () => {
         'add-work-item-table': 'false',
         'add-work-item-from-branch': 'false',
         'branch-work-item-prefixes': 'task, bug, bugfix',
-        'branch-work-item-min-digits': '1'
+        'branch-work-item-min-digits': '5'
       };
       return defaults[name] || '';
     });
@@ -2420,7 +2420,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
-          'branch-work-item-min-digits': '1',
+          'branch-work-item-min-digits': '5',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2457,7 +2457,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
-          'branch-work-item-min-digits': '1',
+          'branch-work-item-min-digits': '5',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2490,7 +2490,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
-          'branch-work-item-min-digits': '1',
+          'branch-work-item-min-digits': '5',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2546,7 +2546,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
-          'branch-work-item-min-digits': '1',
+          'branch-work-item-min-digits': '5',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2584,7 +2584,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
-          'branch-work-item-min-digits': '1',
+          'branch-work-item-min-digits': '5',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2626,7 +2626,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
-          'branch-work-item-min-digits': '1',
+          'branch-work-item-min-digits': '5',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2663,7 +2663,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
-          'branch-work-item-min-digits': '1',
+          'branch-work-item-min-digits': '5',
           'github-token': 'github-token',
           'azure-devops-token': '',
           'azure-devops-organization': ''
@@ -2690,7 +2690,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'true',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
-          'branch-work-item-min-digits': '1',
+          'branch-work-item-min-digits': '5',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2729,7 +2729,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'true',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
-          'branch-work-item-min-digits': '1',
+          'branch-work-item-min-digits': '5',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2766,7 +2766,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
-          'branch-work-item-min-digits': '1',
+          'branch-work-item-min-digits': '5',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2802,7 +2802,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
-          'branch-work-item-min-digits': '1',
+          'branch-work-item-min-digits': '5',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
