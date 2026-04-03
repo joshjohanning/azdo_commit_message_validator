@@ -128,7 +128,7 @@ describe('Azure DevOps Commit Validator', () => {
     mockContext.payload.pull_request = { number: 42 };
 
     // Default mock for validateWorkItemExists (returns true by default)
-    mockValidateWorkItemExists.mockResolvedValue(true);
+    mockValidateWorkItemExists.mockResolvedValue({ exists: true });
 
     // Default mock for getWorkItemTitle
     mockGetWorkItemTitle.mockResolvedValue({ title: 'Test Work Item', type: 'User Story' });
@@ -1007,7 +1007,7 @@ describe('Azure DevOps Commit Validator', () => {
         }
       });
 
-      mockValidateWorkItemExists.mockResolvedValue(true);
+      mockValidateWorkItemExists.mockResolvedValue({ exists: true });
       mockGetWorkItemTitle.mockResolvedValue({ title: 'Fix login bug', type: 'Bug' });
 
       await run();
@@ -1795,7 +1795,7 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       // Mock work item validation to return false (work item doesn't exist)
-      mockValidateWorkItemExists.mockResolvedValue(false);
+      mockValidateWorkItemExists.mockResolvedValue({ exists: false });
 
       await run();
 
@@ -1828,12 +1828,46 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       // Mock work item validation to return true (work item exists)
-      mockValidateWorkItemExists.mockResolvedValue(true);
+      mockValidateWorkItemExists.mockResolvedValue({ exists: true });
 
       await run();
 
       expect(mockSetFailed).not.toHaveBeenCalled();
       expect(mockValidateWorkItemExists).toHaveBeenCalledWith('test-org', 'azdo-token', '12345');
+    });
+
+    it('should fail with auth error message when PAT is expired', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'true';
+        if (name === 'check-pull-request') return 'false';
+        if (name === 'validate-work-item-exists') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.listCommits.mockResolvedValue({
+        data: [
+          {
+            sha: 'abc123',
+            commit: {
+              message: 'feat: add feature AB#12345'
+            }
+          }
+        ]
+      });
+
+      mockValidateWorkItemExists.mockResolvedValue({
+        exists: false,
+        authError: true,
+        errorMessage: 'Access Denied: The Personal Access Token used has expired.'
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('Personal Access Token (PAT) may be expired'));
     });
 
     it('should update existing invalid work item comment to success when work items are fixed', async () => {
@@ -1870,7 +1904,7 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       // Mock work item validation to return true (work item now exists)
-      mockValidateWorkItemExists.mockResolvedValue(true);
+      mockValidateWorkItemExists.mockResolvedValue({ exists: true });
 
       await run();
 
@@ -1944,7 +1978,7 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       // Mock both work items as invalid
-      mockValidateWorkItemExists.mockResolvedValue(false);
+      mockValidateWorkItemExists.mockResolvedValue({ exists: false });
 
       await run();
 
@@ -1978,7 +2012,7 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       // Mock both work items as invalid
-      mockValidateWorkItemExists.mockResolvedValue(false);
+      mockValidateWorkItemExists.mockResolvedValue({ exists: false });
 
       await run();
 
@@ -2024,7 +2058,7 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       // Mock both work items as invalid
-      mockValidateWorkItemExists.mockResolvedValue(false);
+      mockValidateWorkItemExists.mockResolvedValue({ exists: false });
 
       await run();
 
@@ -2076,7 +2110,7 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       // Mock both work items as invalid
-      mockValidateWorkItemExists.mockResolvedValue(false);
+      mockValidateWorkItemExists.mockResolvedValue({ exists: false });
 
       await run();
 
@@ -2133,7 +2167,7 @@ describe('Azure DevOps Commit Validator', () => {
       });
 
       // Mock both work items as invalid
-      mockValidateWorkItemExists.mockResolvedValue(false);
+      mockValidateWorkItemExists.mockResolvedValue({ exists: false });
 
       await run();
 
