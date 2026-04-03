@@ -2677,7 +2677,7 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('azure-devops-token'));
     });
 
-    it('should skip branch-extracted IDs that do not exist in Azure DevOps when validation is enabled', async () => {
+    it('should skip branch-extracted IDs that do not exist in Azure DevOps when adding work items from the branch name', async () => {
       mockContext.payload.pull_request = { number: 42, head: { ref: 'bug/12345/task/99999-combined' } };
 
       mockGetInput.mockImplementation(name => {
