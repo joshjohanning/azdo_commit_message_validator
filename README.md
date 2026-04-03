@@ -81,10 +81,49 @@ jobs:
 | `add-work-item-table`                  | Add a "Linked Work Items" table to the PR body showing titles for `AB#xxx` references (original references are preserved). Requires `azure-devops-token` and `azure-devops-organization`                                                                                                                                                                                                                            | `false`  | `false`               |
 | `add-work-item-from-branch`            | Automatically extract work item ID(s) from the head branch name and add `AB#xxx` to the PR body if not already present. Only numbers following one of the configured `branch-work-item-prefixes` keywords are extracted. Each ID is always validated against Azure DevOps before being added (regardless of the `validate-work-item-exists` setting). Requires `azure-devops-token` and `azure-devops-organization` | `false`  | `false`               |
 | `branch-work-item-prefixes`            | Comma-separated list of keyword prefixes used to identify work item IDs in branch names (e.g. `task/12345`). Only numbers following one of these keywords (separated by `/`, `-`, or `_`) are extracted. Only used when `add-work-item-from-branch` is `true`                                                                                                                                                       | `false`  | `task, bug, bugfix`   |
+| `branch-work-item-min-digits`          | Minimum number of digits for a work item ID extracted from a branch name. Increase this to avoid false positives (e.g. set to `5` if your Azure DevOps work item IDs are 5+ digits). Only used when `add-work-item-from-branch` is `true`                                                                                                                                                                           | `false`  | `1`                   |
 | `azure-devops-organization`            | The name of the Azure DevOps organization. Required when any of these are enabled: `link-commits-to-pull-request`, `validate-work-item-exists`, `add-work-item-table`, or `add-work-item-from-branch`                                                                                                                                                                                                               | `false`  | `''`                  |
 | `azure-devops-token`                   | Azure DevOps PAT (needs to be a `full` PAT). Required when any of these are enabled: `link-commits-to-pull-request`, `validate-work-item-exists`, `add-work-item-table`, or `add-work-item-from-branch`                                                                                                                                                                                                             | `false`  | `''`                  |
 | `github-token`                         | The GitHub token that has contents-read and pull_request-write access                                                                                                                                                                                                                                                                                                                                               | `true`   | `${{ github.token }}` |
 | `comment-on-failure`                   | Comment on the pull request if the action fails                                                                                                                                                                                                                                                                                                                                                                     | `true`   | `true`                |
+
+### Auto-Tag from Branch Name
+
+When `add-work-item-from-branch` is enabled, the action extracts work item IDs from the pull request's head branch name and adds `AB#xxx` tags to the PR body. This is useful when your team's branching convention includes the Azure DevOps work item ID in the branch name.
+
+**How it works:**
+
+1. The action scans the branch name for keyword prefixes (default: `task`, `bug`, `bugfix`) followed by a separator (`/`, `-`, or `_`) and a number
+2. The keyword must appear at the **start of the branch** or after a path separator (`/`) — keywords that appear mid-description are ignored
+3. Date-shaped numbers (e.g. `2024-01-15`) are automatically excluded
+4. Every extracted ID is validated against Azure DevOps before being added to the PR body — IDs that don't exist are skipped with a warning
+5. IDs already present in the PR body are not added again
+
+**Branch name examples:**
+
+| Branch Name                   | Extracted IDs        | Notes                                                     |
+| ----------------------------- | -------------------- | --------------------------------------------------------- |
+| `task/12345/fix-login`        | `12345`              | ✅ Standard convention                                    |
+| `bug-67890`                   | `67890`              | ✅ Keyword with `-` separator                             |
+| `users/josh/task/12345/fix`   | `12345`              | ✅ Keyword after path separator                           |
+| `bugfix/2024-01-15-fix-login` | _(none)_             | ⛔ Date pattern excluded                                  |
+| `task/12345/fix-bug-67890`    | `12345`              | ⛔ `bug` in description ignored                           |
+| `hotfix/2024-bugfix`          | _(none)_             | ⛔ `hotfix` is not a default prefix                       |
+| `feature/task-manager-ui`     | _(none)_             | ⛔ No number after keyword                                |
+| `release/task-2.0.1`          | _(none with min 2+)_ | ⛔ Single digit filtered by `branch-work-item-min-digits` |
+
+**Reducing false positives:**
+
+If your Azure DevOps work item IDs are in the 10000+ range, set `branch-work-item-min-digits` to `5` to prevent short numbers (years, version components, etc.) from being extracted:
+
+```yml
+- uses: joshjohanning/azdo_commit_message_validator@v4
+  with:
+    add-work-item-from-branch: true
+    branch-work-item-min-digits: 5
+    azure-devops-organization: my-azdo-org
+    azure-devops-token: ${{ secrets.AZURE_DEVOPS_PAT }}
+```
 
 ## Screenshots
 

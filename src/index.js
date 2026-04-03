@@ -18,15 +18,25 @@ const AB_PATTERN = /AB#[0-9]+/gi;
 /**
  * Build a regex that matches work item IDs (digit sequences) preceded by one
  * of the given keyword prefixes and a separator (/, -, _).
- * The keyword itself must be preceded by start-of-string or a separator to
- * avoid partial matches (e.g. "hotfix" won't match "fix").
+ *
+ * Safeguards against false positives:
+ * - The keyword must be preceded by start-of-string or a path separator (/)
+ *   so keywords buried in descriptions (e.g. "fix-bug-67890") are ignored.
+ * - A negative lookahead rejects date-shaped sequences (e.g. 2024-01-15).
+ * - A configurable minimum digit length filters out short numbers like
+ *   version components or year fragments.
  *
  * @param {string[]} prefixes - Keyword prefixes (e.g. ['task', 'bug', 'bugfix'])
+ * @param {number} [minDigits=1] - Minimum number of digits for a work item ID
  * @returns {RegExp} A global, case-insensitive regex with a single capture group for the digits
  */
-function buildBranchWorkItemPattern(prefixes) {
+function buildBranchWorkItemPattern(prefixes, minDigits = 1) {
   const escaped = prefixes.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  return new RegExp(`(?:^|[/\\-_])(?:${escaped.join('|')})[/\\-_](\\d+)`, 'gi');
+  const min = Math.max(1, Math.floor(minDigits));
+  // Keyword must be at start or after "/" (not after - or _ which indicates mid-description).
+  // (?!\d) forces all consecutive digits to be consumed before checking for date patterns.
+  // Date-like sequences (e.g. 2024-01-15) are rejected by the second lookahead.
+  return new RegExp(`(?:^|/)(?:${escaped.join('|')})[/\\-_](\\d{${min},})(?!\\d|-\\d{1,2}(?:-\\d{1,2}))`, 'gi');
 }
 
 /** HTML comment markers for identifying different validation scenarios */
@@ -64,6 +74,7 @@ export async function run() {
       .split(',')
       .map(p => p.trim())
       .filter(p => p.length > 0);
+    const branchWorkItemMinDigits = parseInt(core.getInput('branch-work-item-min-digits') || '1', 10) || 1;
 
     // Warn if an invalid scope value was provided
     if (checkPullRequest && pullRequestCheckScopeRaw && !validScopes.includes(pullRequestCheckScopeRaw)) {
@@ -118,7 +129,8 @@ export async function run() {
         pullNumber,
         azureDevopsOrganization,
         azureDevopsToken,
-        branchWorkItemPrefixes
+        branchWorkItemPrefixes,
+        branchWorkItemMinDigits
       );
     }
 
@@ -761,17 +773,20 @@ async function appendWorkItemTitlesToPRBody(
 /**
  * Extract work item IDs from a branch name.
  * Only matches digit sequences that follow one of the given keyword prefixes
- * (e.g. task/12345, bug-67890). The prefix must be preceded by start-of-string
- * or a separator (/, -, _) to prevent partial-word matches.
+ * (e.g. task/12345, bug-67890). The prefix must appear at the start of the
+ * branch name or after a path separator (/) to avoid matching keywords that
+ * appear in description segments. Date-shaped numbers (e.g. 2024-01-15) are
+ * excluded automatically.
  *
  * @param {string | null | undefined} branchName - The branch name to extract work item IDs from
  * @param {string[]} prefixes - Keyword prefixes that identify work item IDs (e.g. ['task', 'bug', 'bugfix'])
+ * @param {number} [minDigits=1] - Minimum number of digits for a work item ID
  * @returns {string[]} Array of unique work item ID strings (e.g. ['12345', '67890'])
  */
-export function extractWorkItemIdsFromBranch(branchName, prefixes) {
+export function extractWorkItemIdsFromBranch(branchName, prefixes, minDigits = 1) {
   if (!branchName || !prefixes || prefixes.length === 0) return [];
 
-  const pattern = buildBranchWorkItemPattern(prefixes);
+  const pattern = buildBranchWorkItemPattern(prefixes, minDigits);
   const ids = [];
   let match;
   while ((match = pattern.exec(branchName)) !== null) {
@@ -793,6 +808,7 @@ export function extractWorkItemIdsFromBranch(branchName, prefixes) {
  * @param {string} azureDevopsOrganization - Azure DevOps organization name
  * @param {string} azureDevopsToken - Azure DevOps PAT token
  * @param {string[]} branchPrefixes - Keyword prefixes for identifying work item IDs in branch names
+ * @param {number} [minDigits=1] - Minimum number of digits for a work item ID
  */
 async function addWorkItemsToPRBody(
   octokit,
@@ -800,13 +816,16 @@ async function addWorkItemsToPRBody(
   pullNumber,
   azureDevopsOrganization,
   azureDevopsToken,
-  branchPrefixes
+  branchPrefixes,
+  minDigits = 1
 ) {
   const { owner, repo } = context.repo;
   const branchName = context.payload.pull_request?.head?.ref || '';
 
-  core.info(`Extracting work item IDs from branch name: ${branchName} (prefixes: ${branchPrefixes.join(', ')})`);
-  const workItemIds = extractWorkItemIdsFromBranch(branchName, branchPrefixes);
+  core.info(
+    `Extracting work item IDs from branch name: ${branchName} (prefixes: ${branchPrefixes.join(', ')}, minDigits: ${minDigits})`
+  );
+  const workItemIds = extractWorkItemIdsFromBranch(branchName, branchPrefixes, minDigits);
 
   if (workItemIds.length === 0) {
     core.info('No work item IDs found in branch name');

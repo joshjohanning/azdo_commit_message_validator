@@ -94,7 +94,8 @@ describe('Azure DevOps Commit Validator', () => {
         'validate-work-item-exists': 'false',
         'add-work-item-table': 'false',
         'add-work-item-from-branch': 'false',
-        'branch-work-item-prefixes': 'task, bug, bugfix'
+        'branch-work-item-prefixes': 'task, bug, bugfix',
+        'branch-work-item-min-digits': '1'
       };
       return defaults[name] || '';
     });
@@ -2374,12 +2375,34 @@ describe('Azure DevOps Commit Validator', () => {
       // because "fix" in "hotfix" is preceded by "t", not a separator
       const prefixes = ['fix'];
       expect(extractWorkItemIdsFromBranch('hotfix/12345', prefixes)).toEqual([]);
-      // but "some-fix/12345" should match because "fix" is preceded by "-"
-      expect(extractWorkItemIdsFromBranch('some-fix/12345', prefixes)).toEqual(['12345']);
+      // "some-fix/12345" should NOT match because "fix" is preceded by "-", not "/"
+      expect(extractWorkItemIdsFromBranch('some-fix/12345', prefixes)).toEqual([]);
+      // but "some/fix/12345" should match because "fix" is preceded by "/"
+      expect(extractWorkItemIdsFromBranch('some/fix/12345', prefixes)).toEqual(['12345']);
     });
 
     it('should work with prefix nested after user segment', () => {
       expect(extractWorkItemIdsFromBranch('users/josh/task/12345/fix', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should NOT extract date-shaped numbers (YYYY-MM-DD pattern)', () => {
+      expect(extractWorkItemIdsFromBranch('bugfix/2024-01-15-fix-login', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('task/2025-03-01/update', defaultPrefixes)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('bug/2023-12-25-xmas', defaultPrefixes)).toEqual([]);
+    });
+
+    it('should NOT extract IDs from keywords in the description segment', () => {
+      // "bug" after "fix-" is in the description, not a branch prefix
+      expect(extractWorkItemIdsFromBranch('task/12345/fix-bug-67890', defaultPrefixes)).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('task-12345-bug-67890', defaultPrefixes)).toEqual(['12345']);
+    });
+
+    it('should respect minDigits parameter', () => {
+      expect(extractWorkItemIdsFromBranch('task/12345', defaultPrefixes, 5)).toEqual(['12345']);
+      expect(extractWorkItemIdsFromBranch('task/1234', defaultPrefixes, 5)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('task/123', defaultPrefixes, 5)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('task/2', defaultPrefixes, 2)).toEqual([]);
+      expect(extractWorkItemIdsFromBranch('task/12', defaultPrefixes, 2)).toEqual(['12']);
     });
   });
 
@@ -2397,6 +2420,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '1',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2433,6 +2457,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '1',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2465,6 +2490,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '1',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2520,6 +2546,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '1',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2557,6 +2584,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '1',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2598,6 +2626,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '1',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2634,6 +2663,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '1',
           'github-token': 'github-token',
           'azure-devops-token': '',
           'azure-devops-organization': ''
@@ -2660,6 +2690,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'true',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '1',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2698,6 +2729,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'true',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '1',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2734,6 +2766,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '1',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'
@@ -2769,6 +2802,7 @@ describe('Azure DevOps Commit Validator', () => {
           'validate-work-item-exists': 'false',
           'add-work-item-from-branch': 'true',
           'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '1',
           'github-token': 'github-token',
           'azure-devops-token': 'fake-token',
           'azure-devops-organization': 'my-org'

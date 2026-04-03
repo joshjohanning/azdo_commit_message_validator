@@ -56,6 +56,10 @@ inputs:
     description: 'Comma-separated list of keyword prefixes used to identify work item IDs in branch names (e.g. task/12345). Only numbers following one of these keywords (separated by /, -, or _) are extracted. Only used when add-work-item-from-branch is true.'
     required: false
     default: 'task, bug, bugfix'
+  branch-work-item-min-digits:
+    description: 'Minimum number of digits for a work item ID extracted from a branch name. Increase this to avoid false positives (e.g. set to 5 if your Azure DevOps work item IDs are 5+ digits). Only used when add-work-item-from-branch is true.'
+    required: false
+    default: '1'
 
 runs:
   using: 'node24'
