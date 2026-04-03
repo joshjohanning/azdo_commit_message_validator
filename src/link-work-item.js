@@ -135,12 +135,42 @@ export async function run() {
 }
 
 /**
+ * Check if an error indicates an authentication/authorization problem
+ * (e.g. expired PAT, insufficient permissions).
+ *
+ * @param {unknown} error - The caught error
+ * @returns {{ isAuthError: boolean, message: string }}
+ */
+function detectAuthError(error) {
+  const msg = error instanceof Error ? error.message : String(error);
+  const status = error?.statusCode ?? error?.status;
+
+  if (status === 401 || status === 403) {
+    return { isAuthError: true, message: msg };
+  }
+
+  const authPatterns = [
+    /access denied/i,
+    /personal access token.*expired/i,
+    /unauthorized/i,
+    /authentication failure/i,
+    /AccessCheckException/i
+  ];
+
+  if (authPatterns.some(pattern => pattern.test(msg))) {
+    return { isAuthError: true, message: msg };
+  }
+
+  return { isAuthError: false, message: msg };
+}
+
+/**
  * Validate that a work item exists in Azure DevOps
  *
  * @param {string} devOpsOrg - Azure DevOps organization name
  * @param {string} azToken - Azure DevOps PAT token
  * @param {string} workItemId - Work item ID to validate
- * @returns {Promise<boolean>} - True if work item exists, false otherwise
+ * @returns {Promise<{ exists: boolean, authError?: boolean, errorMessage?: string }>}
  */
 export async function validateWorkItemExists(devOpsOrg, azToken, workItemId) {
   try {
@@ -154,15 +184,21 @@ export async function validateWorkItemExists(devOpsOrg, azToken, workItemId) {
 
     if (workItem && workItem.id) {
       core.info(`... work item ${workItemId} exists`);
-      return true;
+      return { exists: true };
     }
 
     core.warning(`... work item ${workItemId} not found`);
-    return false;
+    return { exists: false };
   } catch (error) {
-    // 404 or other errors mean work item doesn't exist
-    core.warning(`... work item ${workItemId} not found: ${error instanceof Error ? error.message : String(error)}`);
-    return false;
+    const { isAuthError, message } = detectAuthError(error);
+
+    if (isAuthError) {
+      core.error(`... authentication error while validating work item ${workItemId}: ${message}`);
+      return { exists: false, authError: true, errorMessage: message };
+    }
+
+    core.warning(`... work item ${workItemId} not found: ${message}`);
+    return { exists: false };
   }
 }
 

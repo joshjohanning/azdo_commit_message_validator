@@ -244,7 +244,7 @@ describe('Azure DevOps Work Item Linker', () => {
   });
 
   describe('validateWorkItemExists', () => {
-    it('should return true when work item exists', async () => {
+    it('should return { exists: true } when work item exists', async () => {
       // Mock getWorkItem to return a valid work item
       mockGetWorkItem.mockResolvedValue({
         id: 12345,
@@ -256,11 +256,11 @@ describe('Azure DevOps Work Item Linker', () => {
       const { validateWorkItemExists } = await import('../src/link-work-item.js');
       const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
 
-      expect(result).toBe(true);
+      expect(result).toEqual({ exists: true });
       expect(mockGetWorkItem).toHaveBeenCalledWith(12345);
     });
 
-    it('should return false when work item does not exist (404)', async () => {
+    it('should return { exists: false } when work item does not exist (404)', async () => {
       // Mock getWorkItem to throw a 404 error
       const error = new Error('Work item not found');
       error.statusCode = 404;
@@ -269,19 +269,55 @@ describe('Azure DevOps Work Item Linker', () => {
       const { validateWorkItemExists } = await import('../src/link-work-item.js');
       const result = await validateWorkItemExists('test-org', 'azdo-token', '99999');
 
-      expect(result).toBe(false);
+      expect(result).toEqual({ exists: false });
       expect(mockGetWorkItem).toHaveBeenCalledWith(99999);
     });
 
-    it('should return false when work item API call fails', async () => {
+    it('should return { exists: false } when work item API call fails', async () => {
       // Mock getWorkItem to throw a network error
       mockGetWorkItem.mockRejectedValue(new Error('Network error'));
 
       const { validateWorkItemExists } = await import('../src/link-work-item.js');
       const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
 
-      expect(result).toBe(false);
+      expect(result).toEqual({ exists: false });
       expect(mockGetWorkItem).toHaveBeenCalledWith(12345);
+    });
+
+    it('should return authError when PAT has expired (status 401)', async () => {
+      const error = new Error('Unauthorized');
+      error.statusCode = 401;
+      mockGetWorkItem.mockRejectedValue(error);
+
+      const { validateWorkItemExists } = await import('../src/link-work-item.js');
+      const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
+
+      expect(result).toEqual({ exists: false, authError: true, errorMessage: 'Unauthorized' });
+    });
+
+    it('should return authError when PAT has expired (status 403)', async () => {
+      const error = new Error('Forbidden');
+      error.statusCode = 403;
+      mockGetWorkItem.mockRejectedValue(error);
+
+      const { validateWorkItemExists } = await import('../src/link-work-item.js');
+      const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
+
+      expect(result).toEqual({ exists: false, authError: true, errorMessage: 'Forbidden' });
+    });
+
+    it('should return authError when error message indicates expired PAT', async () => {
+      const error = new Error('Access Denied: The Personal Access Token used has expired.');
+      mockGetWorkItem.mockRejectedValue(error);
+
+      const { validateWorkItemExists } = await import('../src/link-work-item.js');
+      const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
+
+      expect(result).toEqual({
+        exists: false,
+        authError: true,
+        errorMessage: 'Access Denied: The Personal Access Token used has expired.'
+      });
     });
   });
 
