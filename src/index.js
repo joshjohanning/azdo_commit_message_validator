@@ -119,7 +119,7 @@ export async function run() {
     // Check pull request
     let invalidWorkItemsFromPR = [];
     if (checkPullRequest) {
-      invalidWorkItemsFromPR = await checkPullRequestForWorkItems(
+      const prResult = await checkPullRequestForWorkItems(
         octokit,
         context,
         pullNumber,
@@ -131,6 +131,13 @@ export async function run() {
         addWorkItemTable,
         pullRequestCheckScope
       );
+
+      // If auth error was detected, stop processing - setFailed was already called
+      if (prResult && prResult.authError) {
+        return;
+      }
+
+      invalidWorkItemsFromPR = Array.isArray(prResult) ? prResult : [];
     }
 
     // Combine all invalid work items and create ONE comment
@@ -564,7 +571,7 @@ async function checkPullRequestForWorkItems(
           if (result.authError) {
             const authMessage = `Azure DevOps authentication failed while validating work items. Your Personal Access Token (PAT) may be expired, revoked, or lack the required scopes. Details: ${result.errorMessage}`;
             core.setFailed(authMessage);
-            return [];
+            return { authError: true };
           }
 
           if (!result.exists) {

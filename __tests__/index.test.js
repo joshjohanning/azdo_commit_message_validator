@@ -1870,6 +1870,38 @@ describe('Azure DevOps Commit Validator', () => {
       expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('Personal Access Token (PAT) may be expired'));
     });
 
+    it('should fail with auth error message when PAT is expired during PR check', async () => {
+      mockGetInput.mockImplementation(name => {
+        if (name === 'check-commits') return 'false';
+        if (name === 'check-pull-request') return 'true';
+        if (name === 'validate-work-item-exists') return 'true';
+        if (name === 'azure-devops-token') return 'azdo-token';
+        if (name === 'azure-devops-organization') return 'test-org';
+        if (name === 'github-token') return 'github-token';
+        if (name === 'comment-on-failure') return 'false';
+        return 'false';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature AB#12345',
+          body: ''
+        }
+      });
+
+      mockValidateWorkItemExists.mockResolvedValue({
+        exists: false,
+        authError: true,
+        errorMessage: 'Access Denied: The Personal Access Token used has expired.'
+      });
+
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('Personal Access Token (PAT) may be expired'));
+      // Should NOT report invalid work items - auth error takes precedence
+      expect(mockSetFailed).not.toHaveBeenCalledWith(expect.stringContaining('do not exist'));
+    });
+
     it('should update existing invalid work item comment to success when work items are fixed', async () => {
       mockGetInput.mockImplementation(name => {
         if (name === 'check-commits') return 'true';
