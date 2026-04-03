@@ -327,6 +327,7 @@ async function checkCommitsForWorkItems(
 
     core.info(`Validating new commit: ${commitSha} - ${commitMessage}`);
 
+    AB_PATTERN.lastIndex = 0;
     if (!AB_PATTERN.test(commitMessage)) {
       // Collect invalid commits
       invalidCommits.push({ sha: commitSha, shortSha: shortCommitSha, message: commitMessage });
@@ -564,6 +565,7 @@ async function checkPullRequestForWorkItems(
   const FAILURE_COMMENT_TEXT = ':x: This pull request is not linked to a work item.';
   const SUCCESS_COMMENT_TEXT = ':white_check_mark: This pull request is now linked to a work item.';
 
+  AB_PATTERN.lastIndex = 0;
   if (!AB_PATTERN.test(textToCheck)) {
     core.info('PR not linked to a work item');
     core.error(
