@@ -149,7 +149,9 @@ export async function run() {
         pull_number: pullNumber
       });
       prBody = pullRequestData.data.body || '';
-      prTitle = pullRequestData.data.title || '';
+      if (checkPullRequest) {
+        prTitle = pullRequestData.data.title || '';
+      }
     }
 
     // Automatically add AB# tags from branch name if enabled
