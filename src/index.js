@@ -861,7 +861,7 @@ export function extractWorkItemIdsFromBranch(branchName, prefixes, minDigits = 1
  * @param {string} azureDevopsToken - Azure DevOps PAT token
  * @param {string[]} branchPrefixes - Keyword prefixes for identifying work item IDs in branch names
  * @param {number} [minDigits=1] - Minimum number of digits for a work item ID
- * @returns {Promise<{body: string}|{authError: true}|undefined>} - Updated body if changed, auth error status, or undefined if nothing to do
+ * @returns {Promise<{body: string}|{authError: true}>} - Final PR body (updated or unchanged), or auth error status
  */
 async function addWorkItemsToPRBody(
   octokit,
@@ -883,7 +883,7 @@ async function addWorkItemsToPRBody(
 
   if (workItemIds.length === 0) {
     core.info('No work item IDs found in branch name');
-    return;
+    return { body: currentBody };
   }
 
   // Cap the number of IDs to validate to avoid excessive API calls
@@ -905,7 +905,7 @@ async function addWorkItemsToPRBody(
 
   if (missingIds.length === 0) {
     core.info('All work item IDs from branch are already in the PR body');
-    return;
+    return { body: currentBody };
   }
 
   // Validate IDs against Azure DevOps before adding
@@ -931,7 +931,7 @@ async function addWorkItemsToPRBody(
   idsToAdd = validatedIds;
   if (idsToAdd.length === 0) {
     core.info('No valid work item IDs from branch to add (all failed validation)');
-    return;
+    return { body: currentBody };
   }
 
   // Build the AB# tags to add
