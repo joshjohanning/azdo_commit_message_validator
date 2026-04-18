@@ -2820,7 +2820,42 @@ describe('Azure DevOps Commit Validator', () => {
         errorMessage: 'Access Denied: The Personal Access Token used has expired.'
       });
 
-      mockOctokit.paginate.mockResolvedValueOnce([]); // commits
+      await run();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('Personal Access Token (PAT) may be expired'));
+      expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+      // Should short-circuit and not proceed to commit checks
+      expect(mockOctokit.paginate).not.toHaveBeenCalled();
+    });
+
+    it('should handle auth error from getWorkItemTitle in appendWorkItemTitlesToPRBody', async () => {
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'false',
+          'check-pull-request': 'true',
+          'github-token': 'github-token',
+          'comment-on-failure': 'false',
+          'validate-work-item-exists': 'false',
+          'add-work-item-table': 'true',
+          'azure-devops-token': 'azdo-token',
+          'azure-devops-organization': 'my-org',
+          'add-work-item-from-branch': 'false'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: {
+          title: 'feat: new feature',
+          body: 'This PR implements AB#12345'
+        }
+      });
+
+      // Simulate auth error from getWorkItemTitle
+      mockGetWorkItemTitle.mockResolvedValue({
+        authError: true,
+        errorMessage: 'Access Denied: The Personal Access Token used has expired.'
+      });
 
       await run();
 

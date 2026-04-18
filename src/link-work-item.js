@@ -208,7 +208,7 @@ export async function validateWorkItemExists(devOpsOrg, azToken, workItemId) {
  * @param {string} devOpsOrg - Azure DevOps organization name
  * @param {string} azToken - Azure DevOps PAT token
  * @param {string} workItemId - Work item ID to fetch
- * @returns {Promise<{title: string, type: string}|null>} - Work item title and type, or null if not found
+ * @returns {Promise<{title: string, type: string}|{authError: true, errorMessage: string}|null>} - Work item title and type, auth error info, or null if not found
  */
 export async function getWorkItemTitle(devOpsOrg, azToken, workItemId) {
   try {
@@ -230,9 +230,14 @@ export async function getWorkItemTitle(devOpsOrg, azToken, workItemId) {
     core.warning(`... work item ${workItemId} not found`);
     return null;
   } catch (error) {
-    core.warning(
-      `... failed to fetch work item ${workItemId} title: ${error instanceof Error ? error.message : String(error)}`
-    );
+    const { isAuthError, message } = detectAuthError(error);
+
+    if (isAuthError) {
+      core.error(`... authentication error while fetching work item ${workItemId} title: ${message}`);
+      return { authError: true, errorMessage: message };
+    }
+
+    core.warning(`... failed to fetch work item ${workItemId} title: ${message}`);
     return null;
   }
 }
