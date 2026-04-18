@@ -2502,7 +2502,7 @@ describe('Azure DevOps Commit Validator', () => {
 
       await run();
 
-      // Should NOT call pulls.get or pulls.update since no IDs found
+      // Should NOT call pulls.update since no IDs found in branch
       expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
     });
 
@@ -2861,6 +2861,54 @@ describe('Azure DevOps Commit Validator', () => {
 
       expect(mockSetFailed).toHaveBeenCalledWith(expect.stringContaining('Personal Access Token (PAT) may be expired'));
       expect(mockOctokit.rest.pulls.update).not.toHaveBeenCalled();
+    });
+
+    it('should NOT update invalid work item comment to success when only add-work-item-from-branch is enabled', async () => {
+      // Regression test for issue #171: the success-comment path must be gated on
+      // checkCommits || checkPullRequest so that branch-only runs don't incorrectly
+      // flip an existing "invalid work items" comment to success.
+      mockContext.payload.pull_request = { number: 42, head: { ref: 'task/12345/fix' } };
+
+      mockGetInput.mockImplementation(name => {
+        const inputs = {
+          'check-commits': 'false',
+          'check-pull-request': 'false',
+          'fail-if-missing-workitem-commit-link': 'false',
+          'link-commits-to-pull-request': 'false',
+          'comment-on-failure': 'true',
+          'validate-work-item-exists': 'true',
+          'add-work-item-from-branch': 'true',
+          'branch-work-item-prefixes': 'task, bug, bugfix',
+          'branch-work-item-min-digits': '5',
+          'github-token': 'github-token',
+          'azure-devops-token': 'fake-token',
+          'azure-devops-organization': 'my-org'
+        };
+        return inputs[name] || '';
+      });
+
+      mockOctokit.rest.pulls.get.mockResolvedValue({
+        data: { title: 'My PR', body: 'Description' }
+      });
+
+      // Branch work item 12345 exists
+      mockValidateWorkItemExists.mockResolvedValueOnce({ exists: true });
+
+      // Simulate an existing invalid work item comment from a previous run
+      mockOctokit.rest.issues.listComments.mockResolvedValue({
+        data: [
+          {
+            id: 555,
+            body: `${COMMENT_MARKERS.INVALID_WORK_ITEMS}\n:x: There is 1 work item in pull request #42 that does not exist in Azure DevOps.`
+          }
+        ]
+      });
+
+      await run();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      // The invalid work item comment must NOT be updated to success — no commit/PR validation ran
+      expect(mockOctokit.rest.issues.updateComment).not.toHaveBeenCalled();
     });
   });
 });

@@ -138,12 +138,29 @@ export async function run() {
 
     const octokit = github.getOctokit(githubToken);
 
+    // Fetch pull request data once, shared between addWorkItemsToPRBody and checkPullRequestForWorkItems
+    let prBody = '';
+    let prTitle = '';
+    if (addWorkItemFromBranch || checkPullRequest) {
+      const { owner, repo } = context.repo;
+      const pullRequestData = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pullNumber
+      });
+      prBody = pullRequestData.data.body || '';
+      if (checkPullRequest) {
+        prTitle = pullRequestData.data.title || '';
+      }
+    }
+
     // Automatically add AB# tags from branch name if enabled
     if (addWorkItemFromBranch) {
       const branchResult = await addWorkItemsToPRBody(
         octokit,
         context,
         pullNumber,
+        prBody,
         azureDevopsOrganization,
         azureDevopsToken,
         branchWorkItemPrefixes,
@@ -153,6 +170,11 @@ export async function run() {
       // If auth error was detected, stop processing - setFailed was already called
       if (branchResult && branchResult.authError) {
         return;
+      }
+
+      // Use updated body for subsequent checks (e.g. checkPullRequest sees the newly added AB# tags)
+      if (branchResult?.body !== undefined) {
+        prBody = branchResult.body;
       }
     }
 
@@ -190,6 +212,8 @@ export async function run() {
         octokit,
         context,
         pullNumber,
+        prBody,
+        prTitle,
         commentOnFailure,
         validateWorkItemExistsFlag,
         azureDevopsOrganization,
@@ -247,7 +271,7 @@ export async function run() {
       core.setFailed(
         `There ${allInvalidWorkItems.length === 1 ? 'is' : 'are'} ${allInvalidWorkItems.length} work item${allInvalidWorkItems.length === 1 ? '' : 's'} that ${allInvalidWorkItems.length === 1 ? 'does' : 'do'} not exist in Azure DevOps`
       );
-    } else if (commentOnFailure && validateWorkItemExistsFlag) {
+    } else if (commentOnFailure && validateWorkItemExistsFlag && (checkCommits || checkPullRequest)) {
       // All work items are valid - check if there's an existing invalid work item comment to update to success
       const { owner, repo } = context.repo;
       const comments = await octokit.paginate(octokit.rest.issues.listComments, {
@@ -512,6 +536,8 @@ async function checkCommitsForWorkItems(
  * @param {Object} octokit - GitHub API client
  * @param {Object} context - GitHub Actions context
  * @param {number} pullNumber - Pull request number
+ * @param {string} pullBody - Current PR body text (pre-fetched by caller)
+ * @param {string} pullTitle - Current PR title (pre-fetched by caller)
  * @param {boolean} commentOnFailure - Whether to comment on PR if validation fails
  * @param {boolean} validateWorkItemExistsFlag - Whether to validate work items exist in Azure DevOps
  * @param {string} azureDevopsOrganization - Azure DevOps organization name
@@ -525,6 +551,8 @@ async function checkPullRequestForWorkItems(
   octokit,
   context,
   pullNumber,
+  pullBody,
+  pullTitle,
   commentOnFailure,
   validateWorkItemExistsFlag,
   azureDevopsOrganization,
@@ -534,16 +562,6 @@ async function checkPullRequestForWorkItems(
   pullRequestCheckScope = 'title-or-body'
 ) {
   const { owner, repo } = context.repo;
-
-  // Get pull request details
-  const pullRequest = await octokit.rest.pulls.get({
-    owner,
-    repo,
-    pull_number: pullNumber
-  });
-
-  const pullBody = pullRequest.data.body || '';
-  const pullTitle = pullRequest.data.title || '';
 
   // Determine which text to check based on pull-request-check-scope
   let textToCheck;
@@ -840,16 +858,18 @@ export function extractWorkItemIdsFromBranch(branchName, prefixes, minDigits = 1
  * @param {Object} octokit - GitHub API client
  * @param {Object} context - GitHub Actions context
  * @param {number} pullNumber - Pull request number
+ * @param {string} currentBody - Current PR body text (pre-fetched by caller)
  * @param {string} azureDevopsOrganization - Azure DevOps organization name
  * @param {string} azureDevopsToken - Azure DevOps PAT token
  * @param {string[]} branchPrefixes - Keyword prefixes for identifying work item IDs in branch names
  * @param {number} [minDigits=1] - Minimum number of digits for a work item ID
- * @returns {Promise<{authError: true}|undefined>} - Auth error status if auth failed, undefined otherwise
+ * @returns {Promise<{body: string}|{authError: true}>} - Final PR body (updated or unchanged), or auth error status
  */
 async function addWorkItemsToPRBody(
   octokit,
   context,
   pullNumber,
+  currentBody,
   azureDevopsOrganization,
   azureDevopsToken,
   branchPrefixes,
@@ -865,7 +885,7 @@ async function addWorkItemsToPRBody(
 
   if (workItemIds.length === 0) {
     core.info('No work item IDs found in branch name');
-    return;
+    return { body: currentBody };
   }
 
   // Cap the number of IDs to validate to avoid excessive API calls
@@ -879,15 +899,6 @@ async function addWorkItemsToPRBody(
 
   core.info(`Found work item ID(s) in branch: ${workItemIds.join(', ')}`);
 
-  // Get current PR body
-  const pullRequest = await octokit.rest.pulls.get({
-    owner,
-    repo,
-    pull_number: pullNumber
-  });
-
-  const currentBody = pullRequest.data.body || '';
-
   // Filter to only IDs not already in the PR body
   const missingIds = workItemIds.filter(id => {
     const pattern = new RegExp(`AB#${id}(?!\\d)`, 'i');
@@ -896,7 +907,7 @@ async function addWorkItemsToPRBody(
 
   if (missingIds.length === 0) {
     core.info('All work item IDs from branch are already in the PR body');
-    return;
+    return { body: currentBody };
   }
 
   // Validate IDs against Azure DevOps before adding
@@ -922,7 +933,7 @@ async function addWorkItemsToPRBody(
   idsToAdd = validatedIds;
   if (idsToAdd.length === 0) {
     core.info('No valid work item IDs from branch to add (all failed validation)');
-    return;
+    return { body: currentBody };
   }
 
   // Build the AB# tags to add
@@ -939,6 +950,7 @@ async function addWorkItemsToPRBody(
   core.info('PR body updated with work item tag(s) from branch name');
   const sanitizedBranchName = branchName.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
   core.summary.addRaw(`- :link: **Added from branch:** ${abTags} extracted from branch \`${sanitizedBranchName}\`\n`);
+  return { body: updatedBody };
 }
 
 /**
