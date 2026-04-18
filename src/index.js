@@ -140,7 +140,7 @@ export async function run() {
 
     // Automatically add AB# tags from branch name if enabled
     if (addWorkItemFromBranch) {
-      await addWorkItemsToPRBody(
+      const branchResult = await addWorkItemsToPRBody(
         octokit,
         context,
         pullNumber,
@@ -149,6 +149,11 @@ export async function run() {
         branchWorkItemPrefixes,
         branchWorkItemMinDigits
       );
+
+      // If auth error was detected, stop processing - setFailed was already called
+      if (branchResult && branchResult.authError) {
+        return;
+      }
     }
 
     // Store work item to commit mapping and validation results
@@ -675,7 +680,7 @@ async function checkPullRequestForWorkItems(
 
       // Append work item titles to PR body if enabled
       if (addWorkItemTable && azureDevopsOrganization && azureDevopsToken) {
-        await appendWorkItemTitlesToPRBody(
+        const appendResult = await appendWorkItemTitlesToPRBody(
           octokit,
           context,
           pullNumber,
@@ -684,6 +689,12 @@ async function checkPullRequestForWorkItems(
           azureDevopsOrganization,
           azureDevopsToken
         );
+
+        if (appendResult && appendResult.authError) {
+          const authMessage = `Azure DevOps authentication failed while fetching work item titles. Your Personal Access Token (PAT) may be expired, revoked, or lack the required scopes. Details: ${appendResult.errorMessage}`;
+          core.setFailed(authMessage);
+          return { authError: true };
+        }
       }
 
       return [];
@@ -728,6 +739,11 @@ async function appendWorkItemTitlesToPRBody(
   for (const workItem of workItems) {
     const workItemNumber = workItem.substring(3); // Remove "AB#" prefix
     const workItemInfo = await getWorkItemTitle(azureDevopsOrganization, azureDevopsToken, workItemNumber);
+
+    if (workItemInfo && workItemInfo.authError) {
+      return { authError: true, errorMessage: workItemInfo.errorMessage };
+    }
+
     if (workItemInfo && workItemInfo.title) {
       workItemInfos.push({ id: workItemNumber, title: workItemInfo.title, type: workItemInfo.type });
       core.summary.addRaw(
@@ -828,6 +844,7 @@ export function extractWorkItemIdsFromBranch(branchName, prefixes, minDigits = 1
  * @param {string} azureDevopsToken - Azure DevOps PAT token
  * @param {string[]} branchPrefixes - Keyword prefixes for identifying work item IDs in branch names
  * @param {number} [minDigits=1] - Minimum number of digits for a work item ID
+ * @returns {Promise<{authError: true}|undefined>} - Auth error status if auth failed, undefined otherwise
  */
 async function addWorkItemsToPRBody(
   octokit,
@@ -891,7 +908,7 @@ async function addWorkItemsToPRBody(
     if (result.authError) {
       const authMessage = `Azure DevOps authentication failed while validating work items from branch. Your Personal Access Token (PAT) may be expired, revoked, or lack the required scopes. Details: ${result.errorMessage}`;
       core.setFailed(authMessage);
-      return;
+      return { authError: true };
     }
 
     if (result.exists) {

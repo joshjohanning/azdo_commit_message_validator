@@ -367,6 +367,44 @@ describe('Azure DevOps Work Item Linker', () => {
       expect(mockWarning).toHaveBeenCalledWith(expect.stringContaining('failed to fetch work item 12345 title'));
     });
 
+    it('should return authError when PAT has expired (status 401)', async () => {
+      const error = new Error('Unauthorized');
+      error.statusCode = 401;
+      mockGetWorkItem.mockRejectedValue(error);
+
+      const { getWorkItemTitle } = await import('../src/link-work-item.js');
+      const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
+
+      expect(result).toEqual({ authError: true, errorMessage: 'Unauthorized' });
+      expect(mockError).toHaveBeenCalledWith(
+        expect.stringContaining('authentication error while fetching work item 12345 title')
+      );
+    });
+
+    it('should return authError when PAT has expired (status 403)', async () => {
+      const error = new Error('Forbidden');
+      error.statusCode = 403;
+      mockGetWorkItem.mockRejectedValue(error);
+
+      const { getWorkItemTitle } = await import('../src/link-work-item.js');
+      const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
+
+      expect(result).toEqual({ authError: true, errorMessage: 'Forbidden' });
+    });
+
+    it('should return authError when error message indicates access denied', async () => {
+      const error = new Error('Access Denied: The Personal Access Token used has expired.');
+      mockGetWorkItem.mockRejectedValue(error);
+
+      const { getWorkItemTitle } = await import('../src/link-work-item.js');
+      const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
+
+      expect(result).toEqual({
+        authError: true,
+        errorMessage: 'Access Denied: The Personal Access Token used has expired.'
+      });
+    });
+
     it('should handle missing title and type fields gracefully', async () => {
       mockGetWorkItem.mockResolvedValue({
         id: 12345,
