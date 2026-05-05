@@ -16,19 +16,8 @@ const mockCore = {
   warning: mockWarning
 };
 
-// Mock azure-devops-node-api
-const mockUpdateWorkItem = jest.fn();
-const mockGetWorkItem = jest.fn();
-const mockGetWorkItemTrackingApi = jest.fn();
-const mockWebApi = jest.fn();
-const mockGetPersonalAccessTokenHandler = jest.fn();
-
 // Setup module mocks
 jest.unstable_mockModule('@actions/core', () => mockCore);
-jest.unstable_mockModule('azure-devops-node-api', () => ({
-  WebApi: mockWebApi,
-  getPersonalAccessTokenHandler: mockGetPersonalAccessTokenHandler
-}));
 
 describe('Azure DevOps Work Item Linker', () => {
   let originalEnv;
@@ -41,27 +30,6 @@ describe('Azure DevOps Work Item Linker', () => {
 
     // Clear all mocks
     jest.clearAllMocks();
-    mockSetFailed.mockClear();
-    mockInfo.mockClear();
-    mockError.mockClear();
-    mockWarning.mockClear();
-    mockUpdateWorkItem.mockClear();
-    mockGetWorkItem.mockClear();
-    mockGetWorkItemTrackingApi.mockClear();
-    mockWebApi.mockClear();
-    mockGetPersonalAccessTokenHandler.mockClear();
-
-    // Set up Azure DevOps API mocks
-    mockGetWorkItemTrackingApi.mockResolvedValue({
-      updateWorkItem: mockUpdateWorkItem,
-      getWorkItem: mockGetWorkItem
-    });
-
-    mockWebApi.mockImplementation(() => ({
-      getWorkItemTrackingApi: mockGetWorkItemTrackingApi
-    }));
-
-    mockGetPersonalAccessTokenHandler.mockReturnValue({});
 
     // Reset modules to ensure fresh imports
     jest.resetModules();
@@ -74,6 +42,19 @@ describe('Azure DevOps Work Item Linker', () => {
     jest.clearAllTimers();
   });
 
+  /**
+   * Helper to create a mock fetch response
+   */
+  function mockFetchResponse(status, body) {
+    return Promise.resolve({
+      ok: status >= 200 && status < 300,
+      status,
+      statusText: status === 200 ? 'OK' : 'Error',
+      json: () => Promise.resolve(body),
+      text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body))
+    });
+  }
+
   describe('Basic functionality', () => {
     it('should export a run function', async () => {
       const mainModule = await import('../src/link-work-item.js');
@@ -82,8 +63,6 @@ describe('Azure DevOps Work Item Linker', () => {
     });
 
     it('should handle already existing link gracefully', async () => {
-      // Set up environment variables
-      process.env.REPO_TOKEN = 'github-token';
       process.env.AZURE_DEVOPS_ORG = 'test-org';
       process.env.AZURE_DEVOPS_PAT = 'azdo-pat';
       process.env.WORKITEMID = '12345';
@@ -93,37 +72,27 @@ describe('Azure DevOps Work Item Linker', () => {
 
       const internalRepoId = '12345678-1234-1234-1234-123456789abc';
 
-      // Mock global fetch
-      global.fetch = jest.fn(() => {
-        return Promise.resolve({
-          status: 200,
-          json: () =>
-            Promise.resolve({
-              data: {
-                'ms.vss-work-web.github-link-data-provider': {
-                  resolvedLinkItems: [
-                    {
-                      repoInternalId: internalRepoId
-                    }
-                  ]
-                }
+      global.fetch = jest.fn(url => {
+        if (url.includes('dataProviders')) {
+          return mockFetchResponse(200, {
+            data: {
+              'ms.vss-work-web.github-link-data-provider': {
+                resolvedLinkItems: [{ repoInternalId: internalRepoId }]
               }
-            })
-        });
+            }
+          });
+        }
+        // PATCH work item — "already exists" error
+        return mockFetchResponse(409, 'The relation already exists');
       });
-
-      // Mock the work item API to return "already exists" error
-      mockUpdateWorkItem.mockRejectedValue(new Error('The relation already exists'));
 
       const { run } = await import('../src/link-work-item.js');
       await run();
 
-      // Should not fail when link already exists
       expect(mockSetFailed).not.toHaveBeenCalled();
     });
 
     it('should send correct data provider request structure', async () => {
-      process.env.REPO_TOKEN = 'github-token';
       process.env.AZURE_DEVOPS_ORG = 'test-org';
       process.env.AZURE_DEVOPS_PAT = 'azdo-pat';
       process.env.WORKITEMID = '12345';
@@ -132,43 +101,33 @@ describe('Azure DevOps Work Item Linker', () => {
       process.env.REPO = 'owner/repo';
 
       const internalRepoId = '12345678-1234-1234-1234-123456789abc';
+      let dataProviderBody;
 
-      let requestBody;
-
-      // Mock global fetch
       global.fetch = jest.fn((url, options) => {
-        requestBody = JSON.parse(options.body);
-        return Promise.resolve({
-          status: 200,
-          json: () =>
-            Promise.resolve({
-              data: {
-                'ms.vss-work-web.github-link-data-provider': {
-                  resolvedLinkItems: [
-                    {
-                      repoInternalId: internalRepoId
-                    }
-                  ]
-                }
+        if (url.includes('dataProviders')) {
+          dataProviderBody = JSON.parse(options.body);
+          return mockFetchResponse(200, {
+            data: {
+              'ms.vss-work-web.github-link-data-provider': {
+                resolvedLinkItems: [{ repoInternalId: internalRepoId }]
               }
-            })
-        });
+            }
+          });
+        }
+        // PATCH work item — success
+        return mockFetchResponse(200, { id: 12345 });
       });
-
-      mockUpdateWorkItem.mockResolvedValue({ id: 12345 });
 
       const { run } = await import('../src/link-work-item.js');
       await run();
 
-      // Verify request body structure
-      expect(requestBody).toBeDefined();
-      expect(requestBody.context.properties.workItemId).toBe('12345');
-      expect(requestBody.context.properties.urls[0]).toBe('https://github.com/owner/repo/pull/42');
-      expect(requestBody.contributionIds[0]).toBe('ms.vss-work-web.github-link-data-provider');
+      expect(dataProviderBody).toBeDefined();
+      expect(dataProviderBody.context.properties.workItemId).toBe('12345');
+      expect(dataProviderBody.context.properties.urls[0]).toBe('https://github.com/owner/repo/pull/42');
+      expect(dataProviderBody.contributionIds[0]).toBe('ms.vss-work-web.github-link-data-provider');
     });
 
-    it('should fail when Azure DevOps connection fails', async () => {
-      process.env.REPO_TOKEN = 'github-token';
+    it('should use application/json-patch+json for work item PATCH', async () => {
       process.env.AZURE_DEVOPS_ORG = 'test-org';
       process.env.AZURE_DEVOPS_PAT = 'azdo-pat';
       process.env.WORKITEMID = '12345';
@@ -176,17 +135,31 @@ describe('Azure DevOps Work Item Linker', () => {
       process.env.PULLREQUESTID = '42';
       process.env.REPO = 'owner/repo';
 
-      // Mock Azure DevOps connection to fail
-      mockGetWorkItemTrackingApi.mockRejectedValue(new Error('Connection failed'));
+      const internalRepoId = '12345678-1234-1234-1234-123456789abc';
+      let patchOptions;
+
+      global.fetch = jest.fn((url, options) => {
+        if (url.includes('dataProviders')) {
+          return mockFetchResponse(200, {
+            data: {
+              'ms.vss-work-web.github-link-data-provider': {
+                resolvedLinkItems: [{ repoInternalId: internalRepoId }]
+              }
+            }
+          });
+        }
+        patchOptions = options;
+        return mockFetchResponse(200, { id: 12345 });
+      });
 
       const { run } = await import('../src/link-work-item.js');
       await run();
 
-      expect(mockSetFailed).toHaveBeenCalledWith('Failed connection to dev ops!');
+      expect(patchOptions.method).toBe('PATCH');
+      expect(patchOptions.headers['Content-Type']).toBe('application/json-patch+json');
     });
 
     it('should fail when internal repo ID cannot be resolved', async () => {
-      process.env.REPO_TOKEN = 'github-token';
       process.env.AZURE_DEVOPS_ORG = 'test-org';
       process.env.AZURE_DEVOPS_PAT = 'azdo-pat';
       process.env.WORKITEMID = '12345';
@@ -194,22 +167,13 @@ describe('Azure DevOps Work Item Linker', () => {
       process.env.PULLREQUESTID = '42';
       process.env.REPO = 'owner/repo';
 
-      // Mock fetch to return empty internal repo ID
       global.fetch = jest.fn(() => {
-        return Promise.resolve({
-          status: 200,
-          json: () =>
-            Promise.resolve({
-              data: {
-                'ms.vss-work-web.github-link-data-provider': {
-                  resolvedLinkItems: [
-                    {
-                      repoInternalId: null
-                    }
-                  ]
-                }
-              }
-            })
+        return mockFetchResponse(200, {
+          data: {
+            'ms.vss-work-web.github-link-data-provider': {
+              resolvedLinkItems: [{ repoInternalId: null }]
+            }
+          }
         });
       });
 
@@ -220,7 +184,6 @@ describe('Azure DevOps Work Item Linker', () => {
     });
 
     it('should handle 401 authorization error', async () => {
-      process.env.REPO_TOKEN = 'github-token';
       process.env.AZURE_DEVOPS_ORG = 'test-org';
       process.env.AZURE_DEVOPS_PAT = 'invalid-pat';
       process.env.WORKITEMID = '12345';
@@ -228,11 +191,13 @@ describe('Azure DevOps Work Item Linker', () => {
       process.env.PULLREQUESTID = '42';
       process.env.REPO = 'owner/repo';
 
-      // Mock fetch to return 401
       global.fetch = jest.fn(() => {
         return Promise.resolve({
+          ok: false,
           status: 401,
-          json: () => Promise.resolve({})
+          statusText: 'Unauthorized',
+          json: () => Promise.resolve({}),
+          text: () => Promise.resolve('Unauthorized')
         });
       });
 
@@ -245,49 +210,38 @@ describe('Azure DevOps Work Item Linker', () => {
 
   describe('validateWorkItemExists', () => {
     it('should return { exists: true } when work item exists', async () => {
-      // Mock getWorkItem to return a valid work item
-      mockGetWorkItem.mockResolvedValue({
-        id: 12345,
-        fields: {
-          'System.Title': 'Test work item'
-        }
-      });
+      global.fetch = jest.fn(() => mockFetchResponse(200, { id: 12345, fields: { 'System.Title': 'Test work item' } }));
 
       const { validateWorkItemExists } = await import('../src/link-work-item.js');
       const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
 
       expect(result).toEqual({ exists: true });
-      expect(mockGetWorkItem).toHaveBeenCalledWith(12345);
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/_apis/wit/workitems/12345'),
+        expect.any(Object)
+      );
     });
 
     it('should return { exists: false } when work item does not exist (404)', async () => {
-      // Mock getWorkItem to throw a 404 error
-      const error = new Error('Work item not found');
-      error.statusCode = 404;
-      mockGetWorkItem.mockRejectedValue(error);
+      global.fetch = jest.fn(() => mockFetchResponse(404, 'Work item not found'));
 
       const { validateWorkItemExists } = await import('../src/link-work-item.js');
       const result = await validateWorkItemExists('test-org', 'azdo-token', '99999');
 
       expect(result).toEqual({ exists: false });
-      expect(mockGetWorkItem).toHaveBeenCalledWith(99999);
     });
 
     it('should return { exists: false } when work item API call fails', async () => {
-      // Mock getWorkItem to throw a network error
-      mockGetWorkItem.mockRejectedValue(new Error('Network error'));
+      global.fetch = jest.fn(() => Promise.reject(new Error('Network error')));
 
       const { validateWorkItemExists } = await import('../src/link-work-item.js');
       const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
 
       expect(result).toEqual({ exists: false });
-      expect(mockGetWorkItem).toHaveBeenCalledWith(12345);
     });
 
     it('should return authError when PAT has expired (status 401)', async () => {
-      const error = new Error('Unauthorized');
-      error.statusCode = 401;
-      mockGetWorkItem.mockRejectedValue(error);
+      global.fetch = jest.fn(() => mockFetchResponse(401, 'Unauthorized'));
 
       const { validateWorkItemExists } = await import('../src/link-work-item.js');
       const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
@@ -296,9 +250,7 @@ describe('Azure DevOps Work Item Linker', () => {
     });
 
     it('should return authError when PAT has expired (status 403)', async () => {
-      const error = new Error('Forbidden');
-      error.statusCode = 403;
-      mockGetWorkItem.mockRejectedValue(error);
+      global.fetch = jest.fn(() => mockFetchResponse(403, 'Forbidden'));
 
       const { validateWorkItemExists } = await import('../src/link-work-item.js');
       const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
@@ -307,8 +259,9 @@ describe('Azure DevOps Work Item Linker', () => {
     });
 
     it('should return authError when error message indicates expired PAT', async () => {
-      const error = new Error('Access Denied: The Personal Access Token used has expired.');
-      mockGetWorkItem.mockRejectedValue(error);
+      global.fetch = jest.fn(() =>
+        mockFetchResponse(400, 'Access Denied: The Personal Access Token used has expired.')
+      );
 
       const { validateWorkItemExists } = await import('../src/link-work-item.js');
       const result = await validateWorkItemExists('test-org', 'azdo-token', '12345');
@@ -323,23 +276,25 @@ describe('Azure DevOps Work Item Linker', () => {
 
   describe('getWorkItemTitle', () => {
     it('should return title and type when work item exists', async () => {
-      mockGetWorkItem.mockResolvedValue({
-        id: 12345,
-        fields: {
-          'System.Title': 'Fix login bug',
-          'System.WorkItemType': 'Bug'
-        }
-      });
+      global.fetch = jest.fn(() =>
+        mockFetchResponse(200, {
+          id: 12345,
+          fields: { 'System.Title': 'Fix login bug', 'System.WorkItemType': 'Bug' }
+        })
+      );
 
       const { getWorkItemTitle } = await import('../src/link-work-item.js');
       const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
 
       expect(result).toEqual({ title: 'Fix login bug', type: 'Bug' });
-      expect(mockGetWorkItem).toHaveBeenCalledWith(12345);
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/_apis/wit/workitems/12345'),
+        expect.any(Object)
+      );
     });
 
     it('should return null when work item is not found', async () => {
-      mockGetWorkItem.mockResolvedValue(null);
+      global.fetch = jest.fn(() => mockFetchResponse(200, null));
 
       const { getWorkItemTitle } = await import('../src/link-work-item.js');
       const result = await getWorkItemTitle('test-org', 'azdo-token', '99999');
@@ -349,7 +304,7 @@ describe('Azure DevOps Work Item Linker', () => {
     });
 
     it('should return null when work item has no fields', async () => {
-      mockGetWorkItem.mockResolvedValue({ id: 12345 });
+      global.fetch = jest.fn(() => mockFetchResponse(200, { id: 12345 }));
 
       const { getWorkItemTitle } = await import('../src/link-work-item.js');
       const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
@@ -358,7 +313,7 @@ describe('Azure DevOps Work Item Linker', () => {
     });
 
     it('should return null and warn on API error', async () => {
-      mockGetWorkItem.mockRejectedValue(new Error('Network error'));
+      global.fetch = jest.fn(() => Promise.reject(new Error('Network error')));
 
       const { getWorkItemTitle } = await import('../src/link-work-item.js');
       const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
@@ -368,9 +323,7 @@ describe('Azure DevOps Work Item Linker', () => {
     });
 
     it('should return authError when PAT has expired (status 401)', async () => {
-      const error = new Error('Unauthorized');
-      error.statusCode = 401;
-      mockGetWorkItem.mockRejectedValue(error);
+      global.fetch = jest.fn(() => mockFetchResponse(401, 'Unauthorized'));
 
       const { getWorkItemTitle } = await import('../src/link-work-item.js');
       const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
@@ -382,9 +335,7 @@ describe('Azure DevOps Work Item Linker', () => {
     });
 
     it('should return authError when PAT has expired (status 403)', async () => {
-      const error = new Error('Forbidden');
-      error.statusCode = 403;
-      mockGetWorkItem.mockRejectedValue(error);
+      global.fetch = jest.fn(() => mockFetchResponse(403, 'Forbidden'));
 
       const { getWorkItemTitle } = await import('../src/link-work-item.js');
       const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
@@ -393,8 +344,9 @@ describe('Azure DevOps Work Item Linker', () => {
     });
 
     it('should return authError when error message indicates access denied', async () => {
-      const error = new Error('Access Denied: The Personal Access Token used has expired.');
-      mockGetWorkItem.mockRejectedValue(error);
+      global.fetch = jest.fn(() =>
+        mockFetchResponse(400, 'Access Denied: The Personal Access Token used has expired.')
+      );
 
       const { getWorkItemTitle } = await import('../src/link-work-item.js');
       const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
@@ -406,10 +358,7 @@ describe('Azure DevOps Work Item Linker', () => {
     });
 
     it('should handle missing title and type fields gracefully', async () => {
-      mockGetWorkItem.mockResolvedValue({
-        id: 12345,
-        fields: {}
-      });
+      global.fetch = jest.fn(() => mockFetchResponse(200, { id: 12345, fields: {} }));
 
       const { getWorkItemTitle } = await import('../src/link-work-item.js');
       const result = await getWorkItemTitle('test-org', 'azdo-token', '12345');
