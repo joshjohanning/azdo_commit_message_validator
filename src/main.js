@@ -9,8 +9,7 @@
  */
 
 import * as core from '@actions/core';
-import * as azdev from 'azure-devops-node-api';
-import { WorkItemExpand } from 'azure-devops-node-api/interfaces/WorkItemTrackingInterfaces.js';
+import { azureDevOpsHeaders, azureDevOpsRequest } from './azure-devops-rest.js';
 
 const relArtifactLink = 'ArtifactLink';
 const relNameGitHubPr = 'GitHub Pull Request';
@@ -33,30 +32,12 @@ export async function run() {
     const dataProviderUrl = dataProviderUrlBase.replace('%DEVOPS_ORG%', devOpsOrg);
     const repo = process.env.REPO;
 
-    core.info('Initialize dev ops connection ...');
-    let azWorkApi;
-    try {
-      const orgUrl = `https://dev.azure.com/${devOpsOrg}`;
-      const authHandler = azdev.getPersonalAccessTokenHandler(azToken);
-      const azWebApi = new azdev.WebApi(orgUrl, authHandler);
-      azWorkApi = await azWebApi.getWorkItemTrackingApi();
-    } catch (exception) {
-      core.info(`... failed! ${exception}`);
-      core.setFailed('Failed connection to dev ops!');
-      return;
-    }
-    core.info('... success!');
-
     hasError = false;
     core.info('Retrieving internalRepoId ...');
     try {
       const dataProviderResponse = await fetch(dataProviderUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Basic ${Buffer.from(`:${azToken}`).toString('base64')}`,
-          Accept: 'application/json'
-        },
+        headers: azureDevOpsHeaders(azToken),
         body: JSON.stringify({
           context: {
             properties: {
@@ -86,33 +67,32 @@ export async function run() {
       const artifactUrl = `vstfs:///GitHub/PullRequest/${internalRepoId}%2F${prRequestId}`;
       try {
         core.info('trying to create the pull request link ...');
-        await azWorkApi.updateWorkItem(
-          {},
-          [
-            {
-              op: 'add',
-              path: '/relations/-',
-              value: {
-                rel: relArtifactLink,
-                url: artifactUrl,
-                attributes: {
-                  name: relNameGitHubPr,
-                  comment: `Pull Request ${prRequestId}`
-                }
+        const patchDoc = [
+          {
+            op: 'add',
+            path: '/relations/-',
+            value: {
+              rel: relArtifactLink,
+              url: artifactUrl,
+              attributes: {
+                name: relNameGitHubPr,
+                comment: `Pull Request ${prRequestId}`
               }
             }
-          ],
-          workItemId,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          WorkItemExpand.Relations
+          }
+        ];
+        await azureDevOpsRequest(
+          `https://dev.azure.com/${devOpsOrg}/_apis/wit/workitems/${workItemId}?$expand=relations&api-version=7.1`,
+          azToken,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json-patch+json' },
+            body: JSON.stringify(patchDoc)
+          }
         );
         core.info('... success!');
       } catch (exception) {
-        const errorMessage = exception.toString();
-        if (-1 !== errorMessage.indexOf('already exists')) {
+        if (exception.toString().indexOf('already exists') !== -1) {
           core.info('... (already exists) ...');
         } else {
           throw exception;
