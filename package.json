@@ -1,6 +1,6 @@
 {
   "name": "azure-devops-work-item-link-enforcer-and-linker",
-  "version": "4.1.6",
+  "version": "4.1.7",
   "private": true,
   "type": "module",
   "description": "GitHub Action to enforce that each commit in a pull request be linked to an Azure DevOps work item and automatically link the pull request to each work item ",
@@ -43,15 +43,15 @@
   },
   "devDependencies": {
     "@joshjohanning/make-coverage-badge-better": "^1.0.1",
-    "@vercel/ncc": "^0.44.1",
+    "@vercel/ncc": "^0.45.0",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-github": "^6.1.1",
+    "eslint-plugin-github": "^6.1.2",
     "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-jest": "^29.16.0",
+    "eslint-plugin-jest": "^29.16.5",
     "eslint-plugin-prettier": "^5.5.6",
-    "globals": "^17.7.0",
-    "jest": "^30.4.2",
+    "globals": "^17.11.0",
+    "jest": "^30.5.0",
     "prettier": "^3.9.6"
   }
 }
